@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniLoop — Student Marketplace Prototype</title>
+<style>
+:root{--ink:#172033;--muted:#667085;--line:#e6e9ef;--bg:#f7f8fb;--card:#fff;--accent:#5b5cf0;--accent2:#13a67a;--soft:#eef0ff}
+*{box-sizing:border-box} body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+nav{height:72px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 7%;position:sticky;top:0;z-index:5}
+.logo{font-weight:800;font-size:24px}.logo span{color:var(--accent)}
+nav .links{display:flex;gap:25px;color:#4d5666;font-size:14px}
+button{border:0;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer}
+.primary{background:var(--accent);color:#fff}.secondary{background:#fff;border:1px solid var(--line);color:var(--ink)}
+.container{max-width:1120px;margin:auto;padding:48px 24px}
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:50px;align-items:center;padding-top:70px}
+.badge{display:inline-block;background:var(--soft);color:var(--accent);padding:8px 12px;border-radius:999px;font-weight:700;font-size:12px}
+h1{font-size:54px;line-height:1.02;margin:18px 0}.hero p{font-size:18px;line-height:1.6;color:var(--muted)}
+.hero-actions{display:flex;gap:12px;margin-top:24px}.hero-card{background:#fff;border:1px solid var(--line);border-radius:24px;padding:22px;box-shadow:0 18px 50px #1b255a12}
+.search{display:flex;gap:10px;background:#f1f3f7;padding:10px;border-radius:14px}.search input{flex:1;border:0;background:transparent;padding:8px;outline:none}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0}.chip{border:1px solid var(--line);padding:7px 10px;border-radius:999px;background:#fff;font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px}.book{height:120px;border-radius:14px;background:linear-gradient(135deg,#dfe3ff,#f2f4ff);display:flex;align-items:center;justify-content:center;font-size:42px}
+.card h3{margin:13px 0 6px;font-size:17px}.meta{font-size:13px;color:var(--muted)}.price{font-weight:800;font-size:20px;margin-top:12px}.tag{display:inline-block;background:#eaf8f3;color:#087b5b;padding:5px 8px;border-radius:8px;font-size:11px;font-weight:700;margin-top:10px}
+.section-title{display:flex;justify-content:space-between;align-items:end;margin-bottom:20px}.section-title h2{font-size:30px;margin:0}.section-title p{color:var(--muted);margin:0}
+.features{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}.feature{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px}.feature b{display:block;margin-bottom:8px}.feature p{color:var(--muted);font-size:13px;line-height:1.5}
+.econ{background:#172033;color:#fff;border-radius:25px;padding:30px}.econ-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.metric{background:#ffffff10;border:1px solid #ffffff20;border-radius:14px;padding:18px}.metric small{color:#b8c0d0}.metric strong{display:block;font-size:28px;margin-top:7px}.note{color:#b8c0d0;font-size:13px;line-height:1.5}
+footer{padding:40px 7%;background:#fff;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+@media(max-width:800px){.hero{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.features{grid-template-columns:1fr 1fr}.econ-grid{grid-template-columns:1fr 1fr}h1{font-size:42px}nav .links{display:none}}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">Uni<span>Loop</span></div>
+  <div class="links"><a href="#browse">Browse</a><a href="#sell">Sell</a><a href="#economics">Economics</a><a href="#about">About</a></div>
+  <button class="primary" onclick="document.getElementById('sell').scrollIntoView({behavior:'smooth'})">Sell an item</button>
+</nav>
+
+<main>
+<section class="container hero">
+  <div>
+    <span class="badge">WEBSITE PROTOTYPE · MANAGERIAL ECONOMICS</span>
+    <h1>Buy less. Sell smart. Stay in the loop.</h1>
+    <p>UniLoop is a campus-first marketplace for students to buy and resell textbooks, calculators, lab coats, notes and other academic essentials within a trusted college community.</p>
+    <div class="hero-actions"><button class="primary" onclick="document.getElementById('browse').scrollIntoView({behavior:'smooth'})">Explore campus deals</button><button class="secondary" onclick="alert('Prototype: seller verification flow opened.')">How verification works</button></div>
+  </div>
+  <div class="hero-card">
+    <div class="search"><input id="searchBox" placeholder="Search textbooks, calculator, lab coat..." oninput="filterCards()"><button class="primary">Search</button></div>
+    <div class="chips"><span class="chip">Textbooks</span><span class="chip">Calculators</span><span class="chip">Lab coats</span><span class="chip">Notes</span></div>
+    <div id="miniResult" class="card" style="box-shadow:none">
+      <div class="meta">Verified seller · 1.2 km away</div><h3>Financial Accounting — 12th Ed.</h3><div class="meta">Good condition · pickup on campus</div><div class="price">₹550</div><span class="tag">Save vs new</span>
+    </div>
+  </div>
+</section>
+
+<section class="container" id="browse">
+  <div class="section-title"><div><h2>Popular on your campus</h2><p>Example inventory for the prototype.</p></div><span class="meta">Campus radius: 5 km</span></div>
+  <div class="grid" id="cards">
+    <div class="card item"><div class="book">📘</div><h3>Financial Accounting — 12th Ed.</h3><div class="meta">B.Com · Good condition · Verified</div><div class="price">₹550</div><span class="tag">Fast pickup</span></div>
+    <div class="card item"><div class="book">🧮</div><h3>Casio Scientific Calculator</h3><div class="meta">Engineering · Like new · Verified</div><div class="price">₹650</div><span class="tag">Popular</span></div>
+    <div class="card item"><div class="book">🥼</div><h3>Lab Coat — Size M</h3><div class="meta">Science · Clean · Verified</div><div class="price">₹280</div><span class="tag">Campus pickup</span></div>
+  </div>
+</section>
+
+<section class="container">
+  <div class="section-title"><div><h2>Why students choose UniLoop</h2><p>Utility comes from lower search cost, trust and convenience.</p></div></div>
+  <div class="features">
+    <div class="feature"><b>🎓 Campus-only</b><p>Listings are organized around participating colleges, reducing irrelevant results.</p></div>
+    <div class="feature"><b>✓ Verified students</b><p>Prototype assumes college-email/ID verification to reduce transaction risk.</p></div>
+    <div class="feature"><b>₹ Lower total cost</b><p>Local pickup avoids shipping and makes second-hand academic items affordable.</p></div>
+    <div class="feature"><b>♻ Circular value</b><p>Items get a second use instead of becoming idle after a semester.</p></div>
+  </div>
+</section>
+
+<section class="container" id="sell">
+  <div class="econ" style="background:#fff;color:var(--ink);border:1px solid var(--line)">
+    <div class="section-title"><div><h2>Sell in three steps</h2><p>Prototype seller flow.</p></div></div>
+    <div class="features">
+      <div class="feature"><b>1. Add item</b><p>Upload a photo, select category, condition and asking price.</p></div>
+      <div class="feature"><b>2. Get matched</b><p>Nearby students discover the listing through course/category filters.</p></div>
+      <div class="feature"><b>3. Meet & close</b><p>Choose campus pickup. UniLoop records the transaction for trust.</p></div>
+      <div class="feature"><b>4. Pay 8%</b><p>Illustrative seller commission; no upfront listing fee in the launch model.</p></div>
+    </div>
+    <button class="primary" onclick="alert('Prototype: listing form would open here.')">Create a listing</button>
+  </div>
+</section>
+
+<section class="container" id="economics">
+  <div class="econ">
+    <div class="section-title"><div><h2 style="color:#fff">Managerial economics snapshot</h2><p class="note">Illustrative assumptions for the academic proposal — not audited forecasts.</p></div></div>
+    <div class="econ-grid">
+      <div class="metric"><small>Seller commission</small><strong>8%</strong></div>
+      <div class="metric"><small>Illustrative avg. order</small><strong>₹650</strong></div>
+      <div class="metric"><small>Contribution / order</small><strong>₹40</strong></div>
+      <div class="metric"><small>Break-even volume</small><strong>450/mo</strong></div>
+    </div>
+    <p class="note" style="margin-top:18px">Model logic: commission revenue ≈ 8% × transaction value. A conservative contribution estimate of ₹40/order is used after payment/support costs. With assumed fixed monthly operating cost of ₹18,000, break-even ≈ 18,000 ÷ 40 = 450 transactions/month.</p>
+  </div>
+</section>
+
+<section class="container" id="about">
+  <div class="section-title"><div><h2>Prototype notes</h2><p>Designed to demonstrate the product, customer journey and economic logic.</p></div></div>
+  <div class="card"><p class="meta" style="font-size:15px;line-height:1.7"><b>Important:</b> This is a clickable academic prototype. Inventory, verification, payments and delivery are illustrative. No real transaction is processed.</p></div>
+</section>
+</main>
+<footer>UniLoop — Managerial Economics Experiential Learning Prototype · Prepared as an academic concept.</footer>
+<script>
+function filterCards(){
+  const q=document.getElementById('searchBox').value.toLowerCase();
+  document.querySelectorAll('.item').forEach(c=>c.style.display=c.innerText.toLowerCase().includes(q)?'block':'none');
+}
+</script>
+</body>
+</html>
