@@ -1,48 +1,11 @@
 
-import { useMemo, useState } from 'react';
-
-const products = [
-  {
-    id: 1,
-    emoji: '📘',
-    title: 'Financial Accounting — 12th Ed.',
-    meta: 'B.Com · Good condition · Verified',
-    price: 550,
-    tag: 'Fast pickup',
-    category: 'Textbooks',
-    condition: 'Good condition',
-    details: 'Pickup on campus',
-  },
-  {
-    id: 2,
-    emoji: '🧮',
-    title: 'Casio Scientific Calculator',
-    meta: 'Engineering · Like new · Verified',
-    price: 650,
-    tag: 'Popular',
-    category: 'Calculators',
-    condition: 'Like new',
-    details: 'Campus pickup available',
-  },
-  {
-    id: 3,
-    emoji: '🥼',
-    title: 'Lab Coat — Size M',
-    meta: 'Science · Clean · Verified',
-    price: 280,
-    tag: 'Campus pickup',
-    category: 'Lab coats',
-    condition: 'Clean',
-    details: 'Pickup on campus',
-  },
-];
+import { useEffect, useMemo, useState } from "react";
 
 const categories = [
   'All',
-  'Textbooks',
-  'Calculators',
-  'Lab coats',
-  'Notes',
+  'Books',
+  'Electronics',
+  'Clothing',
 ];
 
 function Navbar() {
@@ -66,25 +29,35 @@ function Navbar() {
   );
 }
 
+
 function ProductCard({ product }) {
   return (
     <article className="card item-card">
       <div className="book" aria-hidden="true">
-        {product.emoji}
+        {product.category === 'Books'
+          ? '📘'
+          : product.category === 'Electronics'
+            ? '🧮'
+            : product.category === 'Clothing'
+              ? '🥼'
+              : '📦'}
       </div>
 
       <h3>{product.title}</h3>
 
-      <div className="meta">{product.meta}</div>
-
-      <div className="price">
-        ₹{product.price.toLocaleString('en-IN')}
+      <div className="meta">
+        {product.college} · {product.condition}
       </div>
 
-      <span className="tag">{product.tag}</span>
+      <div className="price">
+        ₹{Number(product.price).toLocaleString('en-IN')}
+      </div>
+
+      <span className="tag">{product.category}</span>
     </article>
   );
 }
+
 
 function SearchPanel({
   query,
@@ -92,6 +65,8 @@ function SearchPanel({
   activeCategory,
   setActiveCategory,
   filteredProducts,
+  loading,
+  error,
 }) {
   const featured = filteredProducts[0];
 
@@ -122,9 +97,8 @@ function SearchPanel({
       <div className="chips" aria-label="Filter by category">
         {categories.slice(1).map((category) => (
           <button
-            className={`chip ${
-              activeCategory === category ? 'chip-active' : ''
-            }`}
+            className={`chip ${activeCategory === category ? 'chip-active' : ''
+              }`}
             key={category}
             type="button"
             onClick={() =>
@@ -139,24 +113,29 @@ function SearchPanel({
         ))}
       </div>
 
+
       <div className="card mini-result" aria-live="polite">
-        {featured ? (
+        {loading ? (
+          <div className="empty-state">Loading campus listings...</div>
+        ) : error ? (
+          <div className="empty-state">{error}</div>
+        ) : featured ? (
           <>
             <div className="meta">
-              Verified seller · 1.2 km away
+              {featured.college} · {featured.seller_name}
             </div>
 
             <h3>{featured.title}</h3>
 
             <div className="meta">
-              {featured.condition} · {featured.details.toLowerCase()}
+              {featured.condition} · {featured.category}
             </div>
 
             <div className="price">
-              ₹{featured.price.toLocaleString('en-IN')}
+              ₹{Number(featured.price).toLocaleString('en-IN')}
             </div>
 
-            <span className="tag">Save vs new</span>
+            <span className="tag">Campus listing</span>
           </>
         ) : (
           <div className="empty-state">
@@ -164,6 +143,7 @@ function SearchPanel({
           </div>
         )}
       </div>
+
     </div>
   );
 }
@@ -200,7 +180,9 @@ function Hero(props) {
   );
 }
 
-function BrowseSection({ products, query, activeCategory }) {
+function BrowseSection({ products, query, activeCategory,
+  loading, error,
+}) {
   const hasFilters = query.trim() || activeCategory !== 'All';
 
   return (
@@ -218,7 +200,14 @@ function BrowseSection({ products, query, activeCategory }) {
         <span className="meta">Campus radius: 5 km</span>
       </div>
 
-      {products.length > 0 ? (
+
+      {loading ? (
+        <div className="card empty-state">
+          Loading campus listings...
+        </div>
+      ) : error ? (
+        <div className="card empty-state">{error}</div>
+      ) : products.length > 0 ? (
         <div className="grid">
           {products.map((product) => (
             <ProductCard key={product.id} product={product} />
@@ -230,6 +219,7 @@ function BrowseSection({ products, query, activeCategory }) {
           or category.
         </div>
       )}
+
     </section>
   );
 }
@@ -407,9 +397,37 @@ function Footer() {
   );
 }
 
+
 export default function App() {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    async function fetchListings() {
+      try {
+        const response = await fetch(
+          'http://localhost:3000/api/listings'
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch listings');
+        }
+
+        const data = await response.json();
+        setProducts(data);
+      } catch (err) {
+        console.error('Error fetching listings:', err);
+        setError('Could not load listings. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchListings();
+  }, []);
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -417,15 +435,17 @@ export default function App() {
     return products.filter((product) => {
       const searchableValues = [
         product.title,
-        product.meta,
+        product.description,
         product.category,
         product.condition,
+        product.seller_name,
+        product.college,
       ];
 
       const matchesQuery =
         !normalizedQuery ||
         searchableValues.some((value) =>
-          value.toLowerCase().includes(normalizedQuery)
+          String(value ?? '').toLowerCase().includes(normalizedQuery)
         );
 
       const matchesCategory =
@@ -434,7 +454,7 @@ export default function App() {
 
       return matchesQuery && matchesCategory;
     });
-  }, [query, activeCategory]);
+  }, [products, query, activeCategory]);
 
   return (
     <>
@@ -447,12 +467,16 @@ export default function App() {
           activeCategory={activeCategory}
           setActiveCategory={setActiveCategory}
           filteredProducts={filteredProducts}
+          loading={loading}
+          error={error}
         />
 
         <BrowseSection
           products={filteredProducts}
           query={query}
           activeCategory={activeCategory}
+          loading={loading}
+          error={error}
         />
 
         <FeaturesSection />
