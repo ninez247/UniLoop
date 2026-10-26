@@ -3,9 +3,28 @@ import { useEffect, useMemo, useState } from "react";
 
 const categories = [
   'All',
-  'Books',
-  'Electronics',
-  'Clothing',
+  'Books & Study Materials',
+  'Stationery & Supplies',
+  'Electronics & Gadgets',
+  'Fashion & Clothing',
+  'Shoes & Footwear',
+  'Bags & Backpacks',
+  'Hostel & Room Essentials',
+  'Furniture',
+  'Sports & Fitness',
+  'Project & Creative Supplies',
+  'Cycles & Mobility',
+  'Placement & Professional Wear',
+  'Gaming Accessories',
+  'Musical Instruments',
+  'Beauty & Personal Care',
+  'Kitchen Essentials',
+  'Art & Craft Supplies',
+  'Calculators & Lab Equipment',
+  'College Merchandise',
+  'Tickets & Event Passes',
+  'Free Stuff',
+  'Miscellaneous',
 ];
 
 function Navbar() {
@@ -267,7 +286,91 @@ function FeaturesSection() {
   );
 }
 
-function SellSection() {
+function SellSection({ onListingCreated }) {
+  const [showForm, setShowForm] = useState(false);
+
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    price: '',
+    category: '',
+    condition: '',
+    seller_name: '',
+    college: '',
+  });
+
+  const [submitting, setSubmitting] = useState(false);
+  const [formMessage, setFormMessage] = useState('');
+
+
+
+  async function handleSubmit() {
+    setFormMessage('');
+
+    if (
+      !formData.title.trim() ||
+      !formData.description.trim() ||
+      !formData.price.trim() ||
+      !formData.category ||
+      !formData.condition ||
+      !formData.seller_name.trim() ||
+      !formData.college.trim()
+    ) {
+      setFormMessage('Please fill in all fields before submitting.');
+      return;
+    }
+
+    const price = Number(formData.price);
+
+    if (
+      !Number.isFinite(price) ||
+      price < 0 ||
+      !/^\d+(\.\d{1,2})?$/.test(formData.price.trim())
+    ) {
+      setFormMessage(
+        'Enter a valid, non-negative price with at most two decimal places.'
+      );
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const response = await fetch('http://localhost:3000/api/listings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || 'Failed to create listing.'
+        );
+      }
+
+      onListingCreated(data);
+      setFormMessage('Listing created successfully!');
+      setFormData({
+        title: '',
+        description: '',
+        price: '',
+        category: '',
+        condition: '',
+        seller_name: '',
+        college: '',
+      });
+    } catch (error) {
+      setFormMessage(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+
   const steps = [
     [
       '1. Add item',
@@ -310,13 +413,159 @@ function SellSection() {
           className="button primary"
           type="button"
           onClick={() =>
-            window.alert(
-              'Listing creation will be implemented in a later milestone.'
-            )
-          }
+            setShowForm(!showForm)}
         >
-          Create a listing
+          {showForm ? 'Cancel listing' : 'Create a listing'}
         </button>
+
+        {showForm && (
+          <div className="listing-form">
+            <h3>Create your listing</h3>
+            <p>Fill in the details of the item you want to sell.</p>
+
+            {formMessage && (
+              <p className="form-message" role="status">
+                {formMessage}
+              </p>
+            )}
+
+            <div className="form-group">
+              <label htmlFor="listing-title">Item title</label>
+              <input
+                id="listing-title"
+                type="text"
+                placeholder="e.g. Engineering Mathematics Book"
+                value={formData.title}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="listing-description">Description</label>
+              <textarea
+                id="listing-description"
+                placeholder="Describe the item's condition and details"
+                rows="2"
+                value={formData.description}
+                onChange={(e) => {
+                  setFormData({ ...formData, description: e.target.value });
+
+                  e.target.style.height = "auto";
+                  e.target.style.height = `${e.target.scrollHeight}px`;
+                }}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="listing-price">Price (₹)</label>
+              <input
+                id="listing-price"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="e.g. 350"
+                value={formData.price}
+                onChange={(e) =>
+                  setFormData({ ...formData, price: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="listing-category">Category</label>
+              <select id="listing-category"
+                value={formData.category}
+                onChange={(e) =>
+                  setFormData({ ...formData, category: e.target.value })
+                }>
+                <option value="" disabled>
+                  Select a category
+                </option>
+                <option>Books &amp; Study Materials</option>
+                <option>Stationery &amp; Supplies</option>
+                <option>Electronics &amp; Gadgets</option>
+                <option>Fashion &amp; Clothing</option>
+                <option>Shoes &amp; Footwear</option>
+                <option>Bags &amp; Backpacks</option>
+                <option>Hostel &amp; Room Essentials</option>
+                <option>Furniture</option>
+                <option>Sports &amp; Fitness</option>
+                <option>Project &amp; Creative Supplies</option>
+                <option>Cycles &amp; Mobility</option>
+                <option>Placement &amp; Professional Wear</option>
+                <option>Gaming Accessories</option>
+                <option>Musical Instruments</option>
+                <option>Beauty &amp; Personal Care</option>
+                <option>Kitchen Essentials</option>
+                <option>Art &amp; Craft Supplies</option>
+                <option>Calculators &amp; Lab Equipment</option>
+                <option>College Merchandise</option>
+                <option>Tickets &amp; Event Passes</option>
+                <option>Free Stuff</option>
+                <option>Miscellaneous</option>
+              </select>
+            </div>
+
+
+            <div className="form-group">
+              <label htmlFor="listing-condition">Item condition</label>
+              <select id="listing-condition"
+                value={formData.condition}
+                onChange={(e) =>
+                  setFormData({ ...formData, condition: e.target.value })
+                }
+              >
+                <option value="" disabled>
+                  Select condition
+                </option>
+                <option value="Like New">Like New</option>
+                <option value="Good">Good</option>
+                <option value="Fair">Fair</option>
+              </select>
+            </div>
+
+
+            <div className="form-group">
+              <label htmlFor="listing-seller">Seller name</label>
+              <input
+                id="listing-seller"
+                type="text"
+                placeholder="Enter your name"
+                value={formData.seller_name}
+                onChange={(e) =>
+                  setFormData({ ...formData, seller_name: e.target.value })
+                }
+              />
+            </div>
+
+
+            <div className="form-group">
+              <label htmlFor="listing-college">College</label>
+              <input
+                id="listing-college"
+                type="text"
+                placeholder="e.g. NIT Silchar"
+                value={formData.college}
+                onChange={(e) =>
+                  setFormData({ ...formData, college: e.target.value })
+                }
+              />
+            </div>
+
+            <button
+              className="button primary"
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? 'Submitting...' : 'Submit Listing'}
+            </button>
+
+          </div>
+        )}
+
       </div>
     </section>
   );
@@ -480,7 +729,16 @@ export default function App() {
         />
 
         <FeaturesSection />
-        <SellSection />
+
+        <SellSection
+          onListingCreated={(newListing) => {
+            setProducts((previousProducts) => [
+              newListing,
+              ...previousProducts,
+            ]);
+          }}
+        />
+
         <EconomicsSection />
         <AboutSection />
       </main>
