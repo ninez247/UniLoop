@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
 app.get("/api/listings", async (req, res) => {
     try {
         const result = await pool.query(
-            "SELECT * FROM listings ORDER BY created_at DESC"
+            "SELECT * FROM listings WHERE status = 'available' ORDER BY created_at DESC"
         );
 
         res.json(result.rows);
