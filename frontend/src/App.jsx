@@ -52,15 +52,6 @@ function Navbar() {
 function ProductCard({ product }) {
   return (
     <article className="card item-card">
-      <div className="book" aria-hidden="true">
-        {product.category === 'Books'
-          ? '📘'
-          : product.category === 'Electronics'
-            ? '🧮'
-            : product.category === 'Clothing'
-              ? '🥼'
-              : '📦'}
-      </div>
 
       <h3>{product.title}</h3>
 

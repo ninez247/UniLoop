@@ -269,16 +269,6 @@ h1 {
   min-width: 0;
 }
 
-.book {
-  height: 120px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #dfe3ff, #f2f4ff);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 42px;
-}
-
 .features {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -587,3 +577,4 @@ footer {
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
+
