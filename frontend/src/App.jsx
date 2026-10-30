@@ -1,5 +1,7 @@
-
+import { supabase } from './supabaseClient';
 import { useEffect, useMemo, useState } from "react";
+import Auth from './Auth';
+
 
 const categories = [
   'All',
@@ -27,7 +29,7 @@ const categories = [
   'Miscellaneous',
 ];
 
-function Navbar() {
+function Navbar({ onSellClick }) {
   return (
     <nav className="navbar">
       <a className="logo" href="#top">
@@ -41,9 +43,13 @@ function Navbar() {
         <a href="#about">About</a>
       </div>
 
-      <a className="button primary nav-cta" href="#sell">
+      <button
+        className="button primary nav-cta"
+        onClick={onSellClick}
+      >
         Sell an item
-      </a>
+      </button>
+
     </nav>
   );
 }
@@ -277,7 +283,7 @@ function FeaturesSection() {
   );
 }
 
-function SellSection({ onListingCreated }) {
+function SellSection({ onListingCreated, isAuthenticated, onRequireAuth }) {
   const [showForm, setShowForm] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -403,8 +409,14 @@ function SellSection({ onListingCreated }) {
         <button
           className="button primary"
           type="button"
-          onClick={() =>
-            setShowForm(!showForm)}
+          onClick={() => {
+            if (!isAuthenticated) {
+              onRequireAuth();
+              return;
+            }
+
+            setShowForm(!showForm);
+          }}
         >
           {showForm ? 'Cancel listing' : 'Create a listing'}
         </button>
@@ -644,6 +656,28 @@ export default function App() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [user, setUser] = useState(null);
+  const [showAuth, setShowAuth] = useState(false);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  useEffect(() => {
+    // Get the currently logged-in user when the app loads
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    // Listen for login, logout, and session changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     async function fetchListings() {
@@ -698,7 +732,29 @@ export default function App() {
 
   return (
     <>
-      <Navbar />
+      {showAuth && (
+        <Auth onClose={() => setShowAuth(false)} />
+      )}
+
+      <Navbar
+        onSellClick={() => {
+          if (user) {
+            document.getElementById('sell')?.scrollIntoView({
+              behavior: 'smooth',
+            });
+          } else {
+            setShowAuth(true);
+          }
+        }}
+      />
+
+      {user && (
+        <button onClick={async () => {
+          await supabase.auth.signOut();
+        }}>
+          Logout
+        </button>
+      )}
 
       <main>
         <Hero
@@ -728,6 +784,8 @@ export default function App() {
               ...previousProducts,
             ]);
           }}
+          isAuthenticated={!!user}
+          onRequireAuth={() => setShowAuth(true)}
         />
 
         <EconomicsSection />
