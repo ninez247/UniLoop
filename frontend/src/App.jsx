@@ -740,13 +740,9 @@ export default function App() {
           <>
             <Navbar
               onSellClick={() => {
-                if (user) {
-                  document.getElementById('sell')?.scrollIntoView({
-                    behavior: 'smooth',
-                  });
-                } else {
-                  setShowAuth(true);
-                }
+                document.getElementById('sell')?.scrollIntoView({
+                  behavior: 'smooth',
+                });
               }}
             />
 
