@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Auth.css';
 import { supabase } from './supabaseClient';
 
 function Auth({ onClose }) {
+    const navigate = useNavigate();
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -52,7 +54,7 @@ function Auth({ onClose }) {
                 if (error) throw error;
 
                 setMessage('Login successful!');
-                if (onClose) onClose();
+                navigate('/');
             } else {
                 const { error } = await supabase.auth.signUp({
                     email: email.trim(),

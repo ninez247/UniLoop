@@ -1,6 +1,7 @@
 import { supabase } from './supabaseClient';
 import { useEffect, useMemo, useState } from "react";
 import Auth from './Auth';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 
 
 const categories = [
@@ -658,6 +659,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [user, setUser] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -731,68 +733,74 @@ export default function App() {
   }, [products, query, activeCategory]);
 
   return (
-    <>
-      {showAuth && (
-        <Auth onClose={() => setShowAuth(false)} />
-      )}
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <>
+            <Navbar
+              onSellClick={() => {
+                if (user) {
+                  document.getElementById('sell')?.scrollIntoView({
+                    behavior: 'smooth',
+                  });
+                } else {
+                  setShowAuth(true);
+                }
+              }}
+            />
 
-      <Navbar
-        onSellClick={() => {
-          if (user) {
-            document.getElementById('sell')?.scrollIntoView({
-              behavior: 'smooth',
-            });
-          } else {
-            setShowAuth(true);
-          }
-        }}
+            {user && (
+              <button onClick={async () => {
+                await supabase.auth.signOut();
+              }}>
+                Logout
+              </button>
+            )}
+
+            <main>
+              <Hero
+                query={query}
+                setQuery={setQuery}
+                activeCategory={activeCategory}
+                setActiveCategory={setActiveCategory}
+                filteredProducts={filteredProducts}
+                loading={loading}
+                error={error}
+              />
+
+              <BrowseSection
+                products={filteredProducts}
+                query={query}
+                activeCategory={activeCategory}
+                loading={loading}
+                error={error}
+              />
+
+              <FeaturesSection />
+
+              <SellSection
+                onListingCreated={(newListing) => {
+                  setProducts((previousProducts) => [
+                    newListing,
+                    ...previousProducts,
+                  ]);
+                }}
+                isAuthenticated={!!user}
+                onRequireAuth={() => navigate('/login')}
+              />
+
+              <EconomicsSection />
+              <AboutSection />
+            </main>
+
+            <Footer />
+          </>
+        }
       />
-
-      {user && (
-        <button onClick={async () => {
-          await supabase.auth.signOut();
-        }}>
-          Logout
-        </button>
-      )}
-
-      <main>
-        <Hero
-          query={query}
-          setQuery={setQuery}
-          activeCategory={activeCategory}
-          setActiveCategory={setActiveCategory}
-          filteredProducts={filteredProducts}
-          loading={loading}
-          error={error}
-        />
-
-        <BrowseSection
-          products={filteredProducts}
-          query={query}
-          activeCategory={activeCategory}
-          loading={loading}
-          error={error}
-        />
-
-        <FeaturesSection />
-
-        <SellSection
-          onListingCreated={(newListing) => {
-            setProducts((previousProducts) => [
-              newListing,
-              ...previousProducts,
-            ]);
-          }}
-          isAuthenticated={!!user}
-          onRequireAuth={() => setShowAuth(true)}
-        />
-
-        <EconomicsSection />
-        <AboutSection />
-      </main>
-
-      <Footer />
-    </>
+      <Route path="/login" element={<Auth />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
+
