@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import pool from "./db.js";
+import supabase from "./supabase.js";
 
 dotenv.config();
 
@@ -10,8 +11,73 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+async function authenticateUser(req, res, next) {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return res.status(401).json({
+                error: "Authentication required",
+            });
+        }
+
+        const token = authHeader.split(" ")[1];
+
+        const { data, error } = await supabase.auth.getUser(token);
+
+        if (error || !data.user) {
+            return res.status(401).json({
+                error: "Invalid or expired token",
+            });
+        }
+
+        req.user = data.user;
+
+        next();
+    } catch (error) {
+        console.error("Authentication error:", error.message);
+        res.status(500).json({
+            error: "Authentication verification failed",
+        });
+    }
+}
+
 app.get("/", (req, res) => {
     res.send("Uniloop backend is running");
+});
+
+// Fetch and search colleges
+app.get("/api/colleges", async (req, res) => {
+    try {
+        const search = req.query.search?.trim();
+
+        let result;
+
+        if (search) {
+            result = await pool.query(
+                `SELECT id, name, city, state
+                 FROM colleges
+                 WHERE name ILIKE $1 OR city ILIKE $1
+                 ORDER BY name ASC`,
+                [`%${search}%`]
+            );
+        } else {
+            result = await pool.query(
+                `SELECT id, name, city, state
+                 FROM colleges
+                 ORDER BY name ASC`
+            );
+        }
+
+        res.json(result.rows);
+
+    } catch (error) {
+        console.error("Error fetching colleges:", error.message);
+
+        res.status(500).json({
+            error: "Failed to fetch colleges"
+        });
+    }
 });
 
 app.get("/api/listings", async (req, res) => {
@@ -133,6 +199,44 @@ app.post("/api/listings", async (req, res) => {
     }
 });
 
+app.post("/api/profiles", authenticateUser, async (req, res) => {
+    try {
+        const { full_name, college_id } = req.body;
+
+        if (!full_name || !full_name.trim()) {
+            return res.status(400).json({
+                error: "Full name is required",
+            });
+        }
+
+        if (!Number.isInteger(Number(college_id))) {
+            return res.status(400).json({
+                error: "A valid college is required",
+            });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO profiles (supabase_user_id, full_name, college_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (supabase_user_id)
+       DO UPDATE SET
+         full_name = EXCLUDED.full_name,
+         college_id = EXCLUDED.college_id
+       RETURNING *`,
+            [req.user.id, full_name.trim(), Number(college_id)]
+        );
+
+        res.status(200).json({
+            message: "Profile saved successfully",
+            profile: result.rows[0],
+        });
+    } catch (error) {
+        console.error("Error saving profile:", error.message);
+        res.status(500).json({
+            error: "Failed to save profile",
+        });
+    }
+});
 
 const PORT = process.env.PORT || 3000;
 
