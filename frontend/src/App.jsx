@@ -293,12 +293,11 @@ function SellSection({ onListingCreated, isAuthenticated, onRequireAuth }) {
     price: '',
     category: '',
     condition: '',
-    seller_name: '',
-    college: '',
   });
 
   const [submitting, setSubmitting] = useState(false);
   const [formMessage, setFormMessage] = useState('');
+
 
 
 
@@ -310,9 +309,7 @@ function SellSection({ onListingCreated, isAuthenticated, onRequireAuth }) {
       !formData.description.trim() ||
       !formData.price.trim() ||
       !formData.category ||
-      !formData.condition ||
-      !formData.seller_name.trim() ||
-      !formData.college.trim()
+      !formData.condition
     ) {
       setFormMessage('Please fill in all fields before submitting.');
       return;
@@ -334,33 +331,49 @@ function SellSection({ onListingCreated, isAuthenticated, onRequireAuth }) {
     setSubmitting(true);
 
     try {
+      const { data: { session }, error } =
+        await supabase.auth.getSession();
+
+      if (error) throw error;
+
+      if (!session) {
+        throw new Error('Please log in to create a listing.');
+      }
+
+      const listingData = {
+        title: formData.title,
+        description: formData.description,
+        price: formData.price,
+        category: formData.category,
+        condition: formData.condition,
+      };
+
       const response = await fetch('http://localhost:3000/api/listings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(listingData),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.error || 'Failed to create listing.'
-        );
+        throw new Error(data.error || 'Failed to create listing.');
       }
 
       onListingCreated(data);
       setFormMessage('Listing created successfully!');
+
       setFormData({
         title: '',
         description: '',
         price: '',
         category: '',
         condition: '',
-        seller_name: '',
-        college: '',
       });
+
     } catch (error) {
       setFormMessage(error.message);
     } finally {
@@ -368,12 +381,10 @@ function SellSection({ onListingCreated, isAuthenticated, onRequireAuth }) {
     }
   }
 
-
   const steps = [
     [
       '1. Add item',
-      'Upload a photo, select category, condition and asking price.',
-    ],
+      'Add item details, select category, condition and asking price.'],
     [
       '2. Get matched',
       'Nearby students discover the listing through course and category filters.',
@@ -528,34 +539,6 @@ function SellSection({ onListingCreated, isAuthenticated, onRequireAuth }) {
                 <option value="Good">Good</option>
                 <option value="Fair">Fair</option>
               </select>
-            </div>
-
-
-            <div className="form-group">
-              <label htmlFor="listing-seller">Seller name</label>
-              <input
-                id="listing-seller"
-                type="text"
-                placeholder="Enter your name"
-                value={formData.seller_name}
-                onChange={(e) =>
-                  setFormData({ ...formData, seller_name: e.target.value })
-                }
-              />
-            </div>
-
-
-            <div className="form-group">
-              <label htmlFor="listing-college">College</label>
-              <input
-                id="listing-college"
-                type="text"
-                placeholder="e.g. NIT Silchar"
-                value={formData.college}
-                onChange={(e) =>
-                  setFormData({ ...formData, college: e.target.value })
-                }
-              />
             </div>
 
             <button

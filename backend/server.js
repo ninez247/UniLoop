@@ -120,16 +120,13 @@ const allowedCategories = [
 
 const allowedConditions = ["Like New", "Good", "Fair"];
 
-app.post("/api/listings", async (req, res) => {
+app.post("/api/listings", authenticateUser, async (req, res) => {
     const {
         title,
         description,
         price,
         category,
         condition,
-        image_url,
-        seller_name,
-        college,
     } = req.body;
 
     if (
@@ -138,9 +135,7 @@ app.post("/api/listings", async (req, res) => {
         price === null ||
         price === "" ||
         !category?.trim() ||
-        !condition?.trim() ||
-        !seller_name?.trim() ||
-        !college?.trim()
+        !condition?.trim()
     ) {
         return res.status(400).json({
             error: "Please provide all required listing details.",
@@ -172,25 +167,41 @@ app.post("/api/listings", async (req, res) => {
     }
 
     try {
+        const profileResult = await pool.query(
+            `SELECT p.full_name, c.name AS college_name
+             FROM profiles p
+             JOIN colleges c ON p.college_id = c.id
+             WHERE p.supabase_user_id = $1`,
+            [req.user.id]
+        );
+
+        if (profileResult.rows.length === 0) {
+            return res.status(404).json({
+                error: "User profile not found. Please log in again.",
+            });
+        }
+
+        const { full_name, college_name } = profileResult.rows[0];
+
         const result = await pool.query(
             `INSERT INTO listings
-        (title, description, price, category, condition,
-         image_url, seller_name, college)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
+             (title, description, price, category, condition,
+              seller_name, college)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             RETURNING *`,
             [
                 title.trim(),
                 description?.trim() || null,
                 parsedPrice,
                 category.trim(),
                 condition.trim(),
-                image_url?.trim() || null,
-                seller_name.trim(),
-                college.trim(),
+                full_name,
+                college_name,
             ]
         );
 
         res.status(201).json(result.rows[0]);
+
     } catch (error) {
         console.error("Error creating listing:", error.message);
         res.status(500).json({
