@@ -30,7 +30,7 @@ const categories = [
   'Miscellaneous',
 ];
 
-function Navbar({ onSellClick }) {
+function Navbar({ onSellClick, onMyListingsClick, isAuthenticated }) {
   return (
     <nav className="navbar">
       <a className="logo" href="#top">
@@ -40,6 +40,16 @@ function Navbar({ onSellClick }) {
       <div className="links">
         <a href="#browse">Browse</a>
         <a href="#sell">Sell</a>
+
+        {isAuthenticated && (
+          <button
+            type="button"
+            onClick={onMyListingsClick}
+          >
+            My Listings
+          </button>
+        )}
+
         <a href="#economics">Economics</a>
         <a href="#about">About</a>
       </div>
@@ -72,6 +82,185 @@ function ProductCard({ product }) {
 
       <span className="tag">{product.category}</span>
     </article>
+  );
+}
+
+
+function MyListingsSection({
+  listings,
+  loading,
+  error,
+  onConfirmSold,
+  onMarkAsSold,
+  listingToMarkSold,
+  setListingToMarkSold,
+  onConfirmDelete,
+  onDeleteListing,
+  listingToDelete,
+  setListingToDelete,
+}) {
+  return (
+    <section id="my-listings" className="container my-listings-section">
+
+      <div className="section-title my-listings-heading">
+        <div>
+          <h2>My Listings</h2>
+          <p>Manage the items you have listed on UniLoop.</p>
+        </div>
+
+        <span className="listing-count">
+          {listings.length} {listings.length === 1 ? "item" : "items"}
+        </span>
+      </div>
+
+      <div className="sold-notice">
+        <span>ℹ️</span>
+        <p>
+          Sold items will be automatically removed after 7 days.
+        </p>
+      </div>
+
+      {loading && <p>Loading your listings...</p>}
+
+      {error && <p>{error}</p>}
+
+      {!loading && !error && listings.length === 0 && (
+        <p className="my-listings-empty">
+          You haven't listed any items yet.
+        </p>
+      )}
+
+      {!loading && !error && listings.length > 0 && (
+        <div className="my-listings-grid">
+
+          {listings.map((product) => (
+            <div
+              key={product.id}
+              className={`my-listing-card ${product.status === "sold" ? "is-sold" : ""
+                }`}
+            >
+              <ProductCard product={product} />
+
+              <div className="my-listing-footer">
+
+                <span
+                  className={`listing-status ${product.status === "sold"
+                    ? "status-sold"
+                    : "status-available"
+                    }`}
+                >
+                  {product.status === "sold" ? "Sold" : "Available"}
+                </span>
+
+                {product.status === "available" && (
+                  <button
+                    className="button primary"
+                    onClick={() => onConfirmSold(product)}
+                  >
+                    Mark as Sold
+                  </button>
+                )}
+
+                <button
+                  className="button delete-listing-button"
+                  onClick={() => onConfirmDelete(product)}
+                >
+                  Delete
+                </button>
+
+              </div>
+            </div>
+          ))}
+
+        </div>
+      )}
+
+      {listingToMarkSold && (
+        <div className="confirmation-overlay">
+          <div className="confirmation-modal">
+
+            <h3>Mark as Sold?</h3>
+
+            <p>
+              Are you sure you want to mark
+              <strong> {listingToMarkSold.title} </strong>
+              as sold?
+            </p>
+
+            <div className="sold-notice">
+              <span>ℹ️</span>
+              <p>
+                Sold items will be automatically removed
+                after 7 days.
+              </p>
+            </div>
+
+            <div className="confirmation-actions">
+              <button
+                className="button secondary"
+                onClick={() => setListingToMarkSold(null)}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="button primary"
+                onClick={() => {
+                  onMarkAsSold(listingToMarkSold.id);
+                  setListingToMarkSold(null);
+                }}
+              >
+                Mark as Sold
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {listingToDelete && (
+        <div className="confirmation-overlay">
+          <div className="confirmation-modal">
+
+            <h3>Delete Listing?</h3>
+
+            <p>
+              Are you sure you want to permanently delete
+              <strong> {listingToDelete.title} </strong>
+              ?
+            </p>
+
+            <div className="delete-warning">
+              This action cannot be undone. Your listing
+              will be permanently removed from UniLoop.
+            </div>
+
+            <div className="confirmation-actions">
+
+              <button
+                className="button secondary"
+                onClick={() => setListingToDelete(null)}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="button delete-confirm-button"
+                onClick={() => {
+                  onDeleteListing(listingToDelete.id);
+                  setListingToDelete(null);
+                }}
+              >
+                Delete Permanently
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+
+    </section>
   );
 }
 
@@ -648,6 +837,104 @@ export default function App() {
     await supabase.auth.signOut();
   };
 
+  const [myListings, setMyListings] = useState([]);
+  const [myListingsLoading, setMyListingsLoading] = useState(false);
+  const [myListingsError, setMyListingsError] = useState('');
+
+  const [listingToMarkSold, setListingToMarkSold] = useState(null);
+  const [listingToDelete, setListingToDelete] = useState(null);
+
+
+  const handleDeleteListing = async (listingId) => {
+    try {
+      const { data: { session }, error } =
+        await supabase.auth.getSession();
+
+      if (error) throw error;
+
+      if (!session) {
+        throw new Error("Please log in again.");
+      }
+
+      const response = await fetch(
+        `http://localhost:3000/api/my-listings/${listingId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to delete listing.");
+      }
+
+      setMyListings((prev) =>
+        prev.filter((item) => item.id !== listingId)
+      );
+
+      setProducts((prev) =>
+        prev.filter((item) => item.id !== listingId)
+      );
+
+      alert("Listing deleted successfully!");
+
+    } catch (error) {
+      console.error("Error deleting listing:", error);
+      alert(error.message);
+    }
+  };
+
+  const handleMarkAsSold = async (listingId) => {
+    try {
+      const { data: { session }, error } =
+        await supabase.auth.getSession();
+
+      if (error) throw error;
+
+      if (!session) {
+        throw new Error("Please log in again.");
+      }
+
+      const response = await fetch(
+        `http://localhost:3000/api/my-listings/${listingId}/sold`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to mark listing as sold.");
+      }
+
+      setMyListings((prev) =>
+        prev.map((item) =>
+          item.id === listingId
+            ? { ...item, status: "sold" }
+            : item
+        )
+      );
+
+      setProducts((prev) =>
+        prev.filter((item) => item.id !== listingId)
+      );
+
+      alert("Listing marked as sold!");
+
+    } catch (error) {
+      console.error("Error marking listing as sold:", error);
+      alert(error.message);
+    }
+  };
+
   useEffect(() => {
     // Get the currently logged-in user when the app loads
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -663,6 +950,55 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setMyListings([]);
+      return;
+    }
+
+    async function fetchMyListings() {
+      setMyListingsLoading(true);
+      setMyListingsError('');
+
+      try {
+        const { data: { session }, error } =
+          await supabase.auth.getSession();
+
+        if (error) throw error;
+
+        if (!session) {
+          throw new Error('Please log in again.');
+        }
+
+        const response = await fetch(
+          'http://localhost:3000/api/my-listings',
+          {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to fetch your listings.');
+        }
+
+        setMyListings(data);
+
+      } catch (error) {
+        console.error('Error fetching my listings:', error);
+        setMyListingsError(error.message);
+
+      } finally {
+        setMyListingsLoading(false);
+      }
+    }
+
+    fetchMyListings();
+  }, [user]);
 
   useEffect(() => {
     async function fetchListings() {
@@ -727,6 +1063,13 @@ export default function App() {
                   behavior: 'smooth',
                 });
               }}
+
+              isAuthenticated={!!user}
+              onMyListingsClick={() => {
+                document.getElementById('my-listings')?.scrollIntoView({
+                  behavior: 'smooth',
+                });
+              }}
             />
 
             {user && (
@@ -755,6 +1098,22 @@ export default function App() {
                 loading={loading}
                 error={error}
               />
+
+              {user && (
+                <MyListingsSection
+                  listings={myListings}
+                  loading={myListingsLoading}
+                  error={myListingsError}
+                  onMarkAsSold={handleMarkAsSold}
+                  onConfirmSold={setListingToMarkSold}
+                  listingToMarkSold={listingToMarkSold}
+                  setListingToMarkSold={setListingToMarkSold}
+                  onConfirmDelete={setListingToDelete}
+                  onDeleteListing={handleDeleteListing}
+                  listingToDelete={listingToDelete}
+                  setListingToDelete={setListingToDelete}
+                />
+              )}
 
               <FeaturesSection />
 

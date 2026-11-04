@@ -578,3 +578,255 @@ footer {
   overflow-wrap: anywhere;
 }
 
+.sold-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff8e7;
+  border: 1px solid #f0dfb5;
+  color: #795b18;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.sold-notice p {
+  margin: 0;
+}
+
+.confirmation-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  z-index: 9999;
+  padding: 20px;
+}
+
+.confirmation-modal {
+  background: white;
+  width: 100%;
+  max-width: 420px;
+  padding: 28px;
+  border-radius: 16px;
+
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+
+  animation: modalAppear 0.2s ease-out;
+}
+
+.confirmation-modal h3 {
+  margin: 0 0 14px;
+  font-size: 22px;
+}
+
+.confirmation-modal>p {
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.sold-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #fff8e7;
+  border: 1px solid #f0dfb5;
+  color: #795b18;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.sold-notice p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+@keyframes modalAppear {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* MY LISTINGS SECTION */
+
+.my-listings-section {
+  padding-top: 40px;
+  padding-bottom: 55px;
+}
+
+.my-listings-heading {
+  margin-bottom: 22px;
+}
+
+.listing-count {
+  background: var(--soft);
+  color: var(--accent);
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* SOLD NOTICE */
+
+.my-listings-section>.sold-notice {
+  margin-bottom: 28px;
+}
+
+/* PRODUCT GRID */
+
+.my-listings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+/* INDIVIDUAL LISTING CARD */
+
+.my-listing-card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.my-listing-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(23, 32, 51, 0.07);
+}
+
+.my-listing-card .item-card {
+  border: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* CARD FOOTER */
+
+.my-listing-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.listing-status {
+  padding: 6px 11px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.status-available {
+  background: #eaf8f3;
+  color: #087b5b;
+}
+
+.status-sold {
+  background: #f1f2f5;
+  color: #667085;
+}
+
+.my-listing-footer .button {
+  padding: 9px 13px;
+  font-size: 12px;
+}
+
+.my-listings-empty {
+  background: white;
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  padding: 35px;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* RESPONSIVE GRID */
+
+@media (max-width: 800px) {
+  .my-listings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .my-listings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .my-listing-footer .button {
+    padding: 9px 11px;
+  }
+
+  .my-listings-heading {
+    align-items: center;
+  }
+}
+
+
+/* DELETE LISTING */
+
+.delete-listing-button {
+  background: #fff0f0;
+  color: #d33b3b;
+  border: 1px solid #f4cccc;
+  padding: 9px 13px;
+  font-size: 12px;
+}
+
+.delete-listing-button:hover {
+  background: #ffe1e1;
+}
+
+.delete-warning {
+  background: #fff1f1;
+  border: 1px solid #f3d0d0;
+  color: #a83232;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 15px;
+}
+
+.delete-confirm-button {
+  background: #dc3838;
+  color: white;
+  border: none;
+}
+
+.delete-confirm-button:hover {
+  background: #bd2929;
+}

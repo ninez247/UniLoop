@@ -1,4 +1,3 @@
-
 .auth-page {
     min-height: 100vh;
     display: flex;
@@ -161,4 +160,108 @@
     .auth-heading h2 {
         font-size: 24px;
     }
+}
+
+
+/* COLLEGE SUGGESTIONS */
+
+.college-suggestions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.college-suggestions>p {
+    margin: 0 0 5px;
+    color: #718096;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.college-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 15px;
+    border: 1px solid #e1e6f0;
+    border-radius: 11px;
+    background: #ffffff;
+    text-align: left;
+    color: #172033;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.college-option:hover {
+    border-color: #6875e8;
+    background: #f7f7ff;
+    transform: translateY(-1px);
+}
+
+.college-option.selected {
+    border-color: #5b5cf0;
+    background: #f0f0ff;
+}
+
+.college-option-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.college-option-info strong {
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.45;
+}
+
+.college-option-info small {
+    color: #8490a5;
+    font-size: 12px;
+}
+
+.college-option-icon {
+    flex-shrink: 0;
+    width: 27px;
+    height: 27px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #eef0ff;
+    color: #5b5cf0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.college-option:hover .college-option-icon {
+    background: #5b5cf0;
+    color: #ffffff;
+}
+
+/* SELECTED COLLEGE */
+
+.college-selected {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 13px;
+    padding: 12px;
+    border-radius: 10px;
+    background: #eaf8f3;
+    color: #087b5b;
+}
+
+.college-selected>span {
+    font-weight: 800;
+}
+
+.college-selected p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
 }

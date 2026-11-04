@@ -201,21 +201,27 @@ function Auth() {
                                             <p>Try one of these colleges</p>
 
                                             {suggestions.map((college) => (
+
                                                 <button
                                                     type="button"
+                                                    className={`college-option ${selectedCollege?.id === college.id ? 'selected' : ''
+                                                        }`}
                                                     key={college.id}
                                                     onClick={() => {
                                                         setSelectedCollege(college);
-                                                        setCollegeSearch(
-                                                            `${college.name} - ${college.city}`
-                                                        );
+                                                        setCollegeSearch(`${college.name} - ${college.city}`);
                                                     }}
                                                 >
-                                                    {college.name}
-                                                    <small>
-                                                        {college.city}, {college.state}
-                                                    </small>
+                                                    <div className="college-option-info">
+                                                        <strong>{college.name}</strong>
+                                                        <small>{college.city}, {college.state}</small>
+                                                    </div>
+
+                                                    <span className="college-option-icon">
+                                                        <span>+</span>
+                                                    </span>
                                                 </button>
+
                                             ))}
                                         </div>
                                     )}
@@ -227,19 +233,24 @@ function Auth() {
                                                 {matchingColleges.map((college) => (
                                                     <button
                                                         type="button"
+                                                        className={`college-option ${selectedCollege?.id === college.id ? 'selected' : ''
+                                                            }`}
                                                         key={college.id}
                                                         onClick={() => {
                                                             setSelectedCollege(college);
-                                                            setCollegeSearch(
-                                                                `${college.name} - ${college.city}`
-                                                            );
+                                                            setCollegeSearch(`${college.name} - ${college.city}`);
                                                         }}
                                                     >
-                                                        {college.name}
-                                                        <small>
-                                                            {college.city}, {college.state}
-                                                        </small>
+                                                        <div className="college-option-info">
+                                                            <strong>{college.name}</strong>
+                                                            <small>{college.city}, {college.state}</small>
+                                                        </div>
+
+                                                        <span className="college-option-icon">
+                                                            <span>+</span>
+                                                        </span>
                                                     </button>
+
                                                 ))}
                                             </div>
                                         )}
@@ -253,9 +264,12 @@ function Auth() {
                                         )}
 
                                     {selectedCollege && (
-                                        <p>
-                                            Selected: {selectedCollege.name}
-                                        </p>
+                                        <div className="college-selected">
+                                            <span>✓</span>
+                                            <p>
+                                                Selected: <strong>{selectedCollege.name}</strong>
+                                            </p>
+                                        </div>
                                     )}
                                 </div>
                             </>

@@ -186,8 +186,8 @@ app.post("/api/listings", authenticateUser, async (req, res) => {
         const result = await pool.query(
             `INSERT INTO listings
              (title, description, price, category, condition,
-              seller_name, college)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+              seller_name, college, seller_supabase_user_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
             [
                 title.trim(),
@@ -197,6 +197,7 @@ app.post("/api/listings", authenticateUser, async (req, res) => {
                 condition.trim(),
                 full_name,
                 college_name,
+                req.user.id,
             ]
         );
 
@@ -248,6 +249,94 @@ app.post("/api/profiles", authenticateUser, async (req, res) => {
         });
     }
 });
+
+app.get("/api/my-listings", authenticateUser, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT *
+             FROM listings
+             WHERE seller_supabase_user_id = $1
+             ORDER BY created_at DESC`,
+            [req.user.id]
+        );
+
+        res.json(result.rows);
+
+    } catch (error) {
+        console.error("Error fetching user listings:", error.message);
+        res.status(500).json({
+            error: "Failed to fetch your listings."
+        });
+    }
+});
+
+app.patch("/api/my-listings/:id/sold", authenticateUser, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await pool.query(
+            `UPDATE listings
+       SET status = 'sold'
+       WHERE id = $1
+       AND seller_supabase_user_id = $2
+       AND status = 'available'
+       RETURNING *`,
+            [id, req.user.id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                error: "Listing not found or already sold."
+            });
+        }
+
+        res.json({
+            message: "Listing marked as sold successfully.",
+            listing: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error("Error marking listing as sold:", error.message);
+
+        res.status(500).json({
+            error: "Failed to mark listing as sold."
+        });
+    }
+});
+
+
+app.delete("/api/my-listings/:id", authenticateUser, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const result = await pool.query(
+            `DELETE FROM listings
+       WHERE id = $1
+       AND seller_supabase_user_id = $2
+       RETURNING *`,
+            [id, req.user.id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                error: "Listing not found or you are not authorized to delete it."
+            });
+        }
+
+        res.json({
+            message: "Listing deleted successfully.",
+            listing: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error("Error deleting listing:", error.message);
+
+        res.status(500).json({
+            error: "Failed to delete listing."
+        });
+    }
+});
+
 
 const PORT = process.env.PORT || 3000;
 
