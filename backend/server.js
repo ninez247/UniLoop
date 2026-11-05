@@ -42,6 +42,253 @@ async function authenticateUser(req, res, next) {
     }
 }
 
+app.post("/api/conversations", authenticateUser, async (req, res) => {
+    try {
+        const { listing_id } = req.body;
+
+        if (!Number.isInteger(Number(listing_id)) || Number(listing_id) <= 0) {
+            return res.status(400).json({
+                error: "A valid listing ID is required."
+            });
+        }
+
+        const buyerId = req.user.id;
+
+        const listingResult = await pool.query(
+            `SELECT id, seller_supabase_user_id, status
+             FROM listings
+             WHERE id = $1`,
+            [listing_id]
+        );
+
+        if (listingResult.rows.length === 0) {
+            return res.status(404).json({
+                error: "Listing not found."
+            });
+        }
+
+        const listing = listingResult.rows[0];
+
+        if (listing.seller_supabase_user_id === buyerId) {
+            return res.status(403).json({
+                error: "You cannot start a conversation with yourself."
+            });
+        }
+
+        if (listing.status !== "available") {
+            return res.status(400).json({
+                error: "This listing is no longer available."
+            });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO conversations
+             (listing_id, buyer_supabase_user_id, seller_supabase_user_id)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (listing_id, buyer_supabase_user_id)
+             DO NOTHING
+             RETURNING *`,
+            [listing.id, buyerId, listing.seller_supabase_user_id]
+        );
+
+        let conversation = result.rows[0];
+
+        if (!conversation) {
+            const existingResult = await pool.query(
+                `SELECT *
+                 FROM conversations
+                 WHERE listing_id = $1
+                 AND buyer_supabase_user_id = $2`,
+                [listing.id, buyerId]
+            );
+
+            conversation = existingResult.rows[0];
+        }
+
+        res.status(200).json({
+            message: "Conversation opened successfully.",
+            conversation
+        });
+
+    } catch (error) {
+        console.error("Error creating conversation:", error.message);
+
+        res.status(500).json({
+            error: "Failed to open conversation."
+        });
+    }
+});
+
+
+app.get("/api/conversations", authenticateUser, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const result = await pool.query(
+            `SELECT
+        c.id AS conversation_id,
+        c.listing_id,
+        l.title AS listing_title,
+        l.price AS listing_price,
+        l.status AS listing_status,
+        c.buyer_supabase_user_id,
+        c.seller_supabase_user_id,
+        CASE
+          WHEN c.buyer_supabase_user_id = $1
+          THEN c.seller_supabase_user_id
+          ELSE c.buyer_supabase_user_id
+        END AS other_user_id,
+        p.full_name AS other_user_name,
+        c.created_at
+      FROM conversations c
+      JOIN listings l
+        ON c.listing_id = l.id
+      LEFT JOIN profiles p
+        ON p.supabase_user_id = CASE
+          WHEN c.buyer_supabase_user_id = $1
+          THEN c.seller_supabase_user_id
+          ELSE c.buyer_supabase_user_id
+        END
+      WHERE
+        c.buyer_supabase_user_id = $1
+        OR c.seller_supabase_user_id = $1
+      ORDER BY c.created_at DESC`,
+            [userId]
+        );
+
+        res.status(200).json({
+            conversations: result.rows
+        });
+
+    } catch (error) {
+        console.error("Error fetching conversations:", error.message);
+
+        res.status(500).json({
+            error: "Failed to fetch conversations."
+        });
+    }
+});
+
+
+app.get("/api/conversations/:id/messages", authenticateUser, async (req, res) => {
+    try {
+        const conversationId = Number(req.params.id);
+        const userId = req.user.id;
+
+        if (!Number.isInteger(conversationId) || conversationId <= 0) {
+            return res.status(400).json({
+                error: "A valid conversation ID is required."
+            });
+        }
+
+        // Check whether the logged-in user belongs to this conversation
+        const conversationResult = await pool.query(
+            `SELECT id
+       FROM conversations
+       WHERE id = $1
+       AND (
+         buyer_supabase_user_id = $2
+         OR seller_supabase_user_id = $2
+       )`,
+            [conversationId, userId]
+        );
+
+        if (conversationResult.rows.length === 0) {
+            return res.status(404).json({
+                error: "Conversation not found or access denied."
+            });
+        }
+
+        // Retrieve messages in chronological order
+        const result = await pool.query(
+            `SELECT
+        m.id,
+        m.conversation_id,
+        m.sender_supabase_user_id,
+        p.full_name AS sender_name,
+        m.message_text,
+        m.created_at
+       FROM messages m
+       LEFT JOIN profiles p
+         ON m.sender_supabase_user_id = p.supabase_user_id
+       WHERE m.conversation_id = $1
+       ORDER BY m.created_at ASC`,
+            [conversationId]
+        );
+
+        res.status(200).json({
+            messages: result.rows
+        });
+
+    } catch (error) {
+        console.error("Error fetching messages:", error.message);
+
+        res.status(500).json({
+            error: "Failed to fetch messages."
+        });
+    }
+});
+
+
+app.post("/api/conversations/:id/messages", authenticateUser, async (req, res) => {
+    try {
+        const conversationId = Number(req.params.id);
+        const userId = req.user.id;
+        const { message_text } = req.body;
+
+        if (!Number.isInteger(conversationId) || conversationId <= 0) {
+            return res.status(400).json({
+                error: "A valid conversation ID is required."
+            });
+        }
+
+        if (typeof message_text !== "string" || !message_text.trim()) {
+            return res.status(400).json({
+                error: "Message cannot be empty."
+            });
+        }
+
+        // Verify that the user belongs to this conversation
+        const conversationResult = await pool.query(
+            `SELECT id
+       FROM conversations
+       WHERE id = $1
+       AND (
+         buyer_supabase_user_id = $2
+         OR seller_supabase_user_id = $2
+       )`,
+            [conversationId, userId]
+        );
+
+        if (conversationResult.rows.length === 0) {
+            return res.status(404).json({
+                error: "Conversation not found or access denied."
+            });
+        }
+
+        // Save the message
+        const result = await pool.query(
+            `INSERT INTO messages
+       (conversation_id, sender_supabase_user_id, message_text)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+            [conversationId, userId, message_text.trim()]
+        );
+
+        res.status(201).json({
+            message: "Message sent successfully.",
+            sentMessage: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error("Error sending message:", error.message);
+
+        res.status(500).json({
+            error: "Failed to send message."
+        });
+    }
+});
+
 app.get("/", (req, res) => {
     res.send("Uniloop backend is running");
 });

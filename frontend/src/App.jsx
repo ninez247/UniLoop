@@ -65,8 +65,7 @@ function Navbar({ onSellClick, onMyListingsClick, isAuthenticated }) {
   );
 }
 
-
-function ProductCard({ product }) {
+function ProductCard({ product, onContactSeller }) {
   return (
     <article className="card item-card">
 
@@ -81,10 +80,19 @@ function ProductCard({ product }) {
       </div>
 
       <span className="tag">{product.category}</span>
+
+      {onContactSeller && (
+        <button
+          className="button primary"
+          onClick={() => onContactSeller(product.id)}
+        >
+          Contact Seller
+        </button>
+      )}
+
     </article>
   );
 }
-
 
 function MyListingsSection({
   listings,
@@ -387,7 +395,7 @@ function Hero(props) {
 }
 
 function BrowseSection({ products, query, activeCategory,
-  loading, error,
+  loading, error, onContactSeller,
 }) {
   const hasFilters = query.trim() || activeCategory !== 'All';
 
@@ -416,7 +424,11 @@ function BrowseSection({ products, query, activeCategory,
       ) : products.length > 0 ? (
         <div className="grid">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard
+              key={product.id}
+              product={product}
+              onContactSeller={onContactSeller}
+            />
           ))}
         </div>
       ) : (
@@ -888,6 +900,46 @@ export default function App() {
     }
   };
 
+  const handleContactSeller = async (listingId) => {
+    try {
+      const { data: { session }, error } =
+        await supabase.auth.getSession();
+
+      if (error) throw error;
+
+      if (!session) {
+        alert("Please log in to contact the seller.");
+        return;
+      }
+
+      const response = await fetch(
+        "http://localhost:3000/api/conversations",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            listing_id: listingId,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to open conversation.");
+      }
+
+      alert(`Conversation created! ID: ${data.conversation.id}`);
+
+    } catch (error) {
+      console.error("Error opening conversation:", error);
+      alert(error.message);
+    }
+  };
+
   const handleMarkAsSold = async (listingId) => {
     try {
       const { data: { session }, error } =
@@ -1097,6 +1149,7 @@ export default function App() {
                 activeCategory={activeCategory}
                 loading={loading}
                 error={error}
+                onContactSeller={handleContactSeller}
               />
 
               {user && (
@@ -1141,4 +1194,3 @@ export default function App() {
     </Routes>
   );
 }
-

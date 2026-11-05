@@ -830,3 +830,16 @@ footer {
 .delete-confirm-button:hover {
   background: #bd2929;
 }
+
+.links button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.links button:hover {
+  color: var(--accent);
+}
