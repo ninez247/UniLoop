@@ -2,7 +2,7 @@ import { supabase } from './supabaseClient';
 import { useEffect, useMemo, useState } from "react";
 import Auth from './Auth';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-
+import Chat from "./Chat";
 
 const categories = [
   'All',
@@ -30,7 +30,13 @@ const categories = [
   'Miscellaneous',
 ];
 
-function Navbar({ onSellClick, onMyListingsClick, isAuthenticated }) {
+
+function Navbar({
+  onSellClick,
+  onMyListingsClick,
+  onMessagesClick,
+  isAuthenticated
+}) {
   return (
     <nav className="navbar">
       <a className="logo" href="#top">
@@ -42,12 +48,21 @@ function Navbar({ onSellClick, onMyListingsClick, isAuthenticated }) {
         <a href="#sell">Sell</a>
 
         {isAuthenticated && (
-          <button
-            type="button"
-            onClick={onMyListingsClick}
-          >
-            My Listings
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={onMyListingsClick}
+            >
+              My Listings
+            </button>
+
+            <button
+              type="button"
+              onClick={onMessagesClick}
+            >
+              Messages
+            </button>
+          </>
         )}
 
         <a href="#economics">Economics</a>
@@ -60,7 +75,6 @@ function Navbar({ onSellClick, onMyListingsClick, isAuthenticated }) {
       >
         Sell an item
       </button>
-
     </nav>
   );
 }
@@ -1115,7 +1129,7 @@ export default function App() {
                   behavior: 'smooth',
                 });
               }}
-
+              onMessagesClick={() => navigate('/chat')}
               isAuthenticated={!!user}
               onMyListingsClick={() => {
                 document.getElementById('my-listings')?.scrollIntoView({
@@ -1190,6 +1204,14 @@ export default function App() {
         }
       />
       <Route path="/login" element={<Auth />} />
+
+      <Route
+        path="/chat"
+        element={
+          user ? <Chat /> : <Navigate to="/login" replace />
+        }
+      />
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
