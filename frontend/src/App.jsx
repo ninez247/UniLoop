@@ -33,12 +33,24 @@ const categories = [
 ];
 
 
+
 function Navbar({
   onSellClick,
   onMyListingsClick,
   onMessagesClick,
-  isAuthenticated
+  isAuthenticated,
+  user,
+  onLoginClick,
+  onLogoutClick,
 }) {
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const fullName =
+    user?.user_metadata?.full_name || "My Account";
+
+  const collegeName =
+    user?.user_metadata?.college_name || "College not available";
+
   return (
     <nav className="navbar">
       <a className="logo" href="#top">
@@ -50,38 +62,102 @@ function Navbar({
         <a href="#sell">Sell</a>
 
         {isAuthenticated && (
-          <>
-            <button
-              type="button"
-              onClick={onMyListingsClick}
-            >
-              My Listings
-            </button>
-
-            <button
-              type="button"
-              onClick={onMessagesClick}
-            >
-              Messages
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={onMyListingsClick}
+          >
+            My Listings
+          </button>
         )}
-
-        <a href="#economics">Economics</a>
-        <a href="#about">About</a>
       </div>
 
-      <button
-        className="button primary nav-cta"
-        onClick={onSellClick}
-      >
-        Sell an item
-      </button>
+      <div className="nav-actions">
+        {isAuthenticated && (
+          <button
+            className="icon-button"
+            type="button"
+            onClick={onMessagesClick}
+            aria-label="Open messages"
+            title="Messages"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="23"
+              height="23"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="3" y="4" width="18" height="16" rx="3" />
+              <path d="m3 7 9 6 9-6" />
+            </svg>
+          </button>
+        )}
+
+        {!isAuthenticated ? (
+          <button
+            className="button primary login-button"
+            onClick={onLoginClick}
+          >
+            Login
+          </button>
+        ) : (
+          <div className="profile-wrapper">
+            <button
+              className="profile-button"
+              type="button"
+              onClick={() => setProfileOpen(!profileOpen)}
+              aria-label="Open profile menu"
+              aria-expanded={profileOpen}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="23"
+                height="23"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="8" r="4" />
+                <path d="M4 21a8 8 0 0 1 16 0" />
+              </svg>
+            </button>
+
+            {profileOpen && (
+              <div className="profile-dropdown">
+                <strong>{fullName}</strong>
+                <span>{collegeName}</span>
+
+                <div className="profile-divider" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    onLogoutClick();
+                  }}
+                >
+                  Log out
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </nav>
   );
 }
 
-function ProductCard({ product, onContactSeller }) {
+
+function ProductCard({ product, onContactSeller, currentUserId }) {
+  const isOwnListing =
+    currentUserId &&
+    product.seller_supabase_user_id === currentUserId;
+
   return (
     <article className="card item-card">
 
@@ -97,9 +173,9 @@ function ProductCard({ product, onContactSeller }) {
 
       <span className="tag">{product.category}</span>
 
-      {onContactSeller && (
+      {onContactSeller && !isOwnListing && (
         <button
-          className="button primary"
+          className="button contact-seller-button"
           onClick={() => onContactSeller(product.id)}
         >
           Contact Seller
@@ -294,6 +370,9 @@ function SearchPanel({
   setQuery,
   activeCategory,
   setActiveCategory,
+  selectedCollege,
+  setSelectedCollege,
+  collegeOptions,
   filteredProducts,
   loading,
   error,
@@ -318,6 +397,18 @@ function SearchPanel({
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search textbooks, calculator, lab coat..."
         />
+
+        <select
+          aria-label="Filter by college"
+          value={selectedCollege}
+          onChange={(event) => setSelectedCollege(event.target.value)}
+        >
+          {collegeOptions.map((college) => (
+            <option key={college} value={college}>
+              {college}
+            </option>
+          ))}
+        </select>
 
         <button className="button primary" type="submit">
           Search
@@ -410,10 +501,11 @@ function Hero(props) {
   );
 }
 
-function BrowseSection({ products, query, activeCategory,
-  loading, error, onContactSeller,
+function BrowseSection({ products, query, activeCategory, selectedCollege,
+  loading, error, onContactSeller, currentUserId,
 }) {
-  const hasFilters = query.trim() || activeCategory !== 'All';
+  const hasFilters = query.trim() || activeCategory !== 'All' ||
+    selectedCollege !== 'All Colleges';
 
   return (
     <section className="container" id="browse">
@@ -444,6 +536,7 @@ function BrowseSection({ products, query, activeCategory,
               key={product.id}
               product={product}
               onContactSeller={onContactSeller}
+              currentUserId={currentUserId}
             />
           ))}
         </div>
@@ -854,7 +947,24 @@ function Footer() {
 export default function App() {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  const [selectedCollege, setSelectedCollege] = useState('All Colleges');
   const [products, setProducts] = useState([]);
+
+  const collegeOptions = useMemo(() => {
+    return [
+      'All Colleges',
+      ...new Set(
+        products
+          .map((product) => product.college?.trim())
+          .filter(Boolean)
+      ),
+    ].sort((a, b) => {
+      if (a === 'All Colleges') return -1;
+      if (b === 'All Colleges') return 1;
+      return a.localeCompare(b);
+    });
+  }, [products]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [user, setUser] = useState(null);
@@ -948,7 +1058,7 @@ export default function App() {
         throw new Error(data.error || "Failed to open conversation.");
       }
 
-      alert(`Conversation created! ID: ${data.conversation.id}`);
+      navigate(`/chat?conversation=${data.conversation.id}`);
 
     } catch (error) {
       console.error("Error opening conversation:", error);
@@ -1115,9 +1225,13 @@ export default function App() {
         activeCategory === 'All' ||
         product.category === activeCategory;
 
-      return matchesQuery && matchesCategory;
+      const matchesCollege =
+        selectedCollege === 'All Colleges' ||
+        product.college === selectedCollege;
+
+      return matchesQuery && matchesCategory && matchesCollege;
     });
-  }, [products, query, activeCategory]);
+  }, [products, query, activeCategory, selectedCollege]);
 
   return (
     <Routes>
@@ -1132,6 +1246,9 @@ export default function App() {
                 });
               }}
               onMessagesClick={() => navigate('/chat')}
+              user={user}
+              onLoginClick={() => navigate('/login')}
+              onLogoutClick={handleLogout}
               isAuthenticated={!!user}
               onMyListingsClick={() => {
                 document.getElementById('my-listings')?.scrollIntoView({
@@ -1140,20 +1257,15 @@ export default function App() {
               }}
             />
 
-            {user && (
-              <button onClick={async () => {
-                await supabase.auth.signOut();
-              }}>
-                Logout
-              </button>
-            )}
-
             <main>
               <Hero
                 query={query}
                 setQuery={setQuery}
                 activeCategory={activeCategory}
                 setActiveCategory={setActiveCategory}
+                selectedCollege={selectedCollege}
+                setSelectedCollege={setSelectedCollege}
+                collegeOptions={collegeOptions}
                 filteredProducts={filteredProducts}
                 loading={loading}
                 error={error}
@@ -1163,9 +1275,11 @@ export default function App() {
                 products={filteredProducts}
                 query={query}
                 activeCategory={activeCategory}
+                selectedCollege={selectedCollege}
                 loading={loading}
                 error={error}
                 onContactSeller={handleContactSeller}
+                currentUserId={user?.id}
               />
 
               {user && (

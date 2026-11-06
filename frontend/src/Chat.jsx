@@ -1,10 +1,12 @@
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 import "./Chat.css";
 import { API_URL } from "./api";
 
 function Chat() {
+    const [searchParams] = useSearchParams();
+    const requestedConversationId = searchParams.get("conversation");
     const [conversations, setConversations] = useState([]);
     const [selectedConversation, setSelectedConversation] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -12,6 +14,7 @@ function Chat() {
     const [currentUserId, setCurrentUserId] = useState(null);
     const [newMessage, setNewMessage] = useState("");
     const [sending, setSending] = useState(false);
+    const messagesEndRef = useRef(null);
 
     const handleSelectConversation = async (conversation) => {
         setSelectedConversation(conversation);
@@ -143,6 +146,24 @@ function Chat() {
     }, []);
 
     useEffect(() => {
+        if (!requestedConversationId || conversations.length === 0) {
+            return;
+        }
+
+        const targetConversation = conversations.find(
+            (conversation) =>
+                String(conversation.conversation_id) === requestedConversationId
+        );
+
+        if (
+            targetConversation &&
+            selectedConversation?.conversation_id !== targetConversation.conversation_id
+        ) {
+            handleSelectConversation(targetConversation);
+        }
+    }, [requestedConversationId, conversations, selectedConversation]);
+
+    useEffect(() => {
         if (!selectedConversation) return;
 
         let isActive = true;
@@ -221,6 +242,13 @@ function Chat() {
         };
     }, [selectedConversation]);
 
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "end",
+        });
+    }, [messages, selectedConversation]);
+
     return (
         <div className="chat-screen">
             <div className="chat-page">
@@ -278,6 +306,7 @@ function Chat() {
                                         </span>
                                     </div>
                                 ))}
+                                <div ref={messagesEndRef} />
                             </div>
 
                             <form className="message-form" onSubmit={handleSendMessage}>
