@@ -4,6 +4,8 @@ import Auth from './Auth';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Chat from "./Chat";
 
+import { API_URL } from "./api";
+
 const categories = [
   'All',
   'Books & Study Materials',
@@ -563,7 +565,7 @@ function SellSection({ onListingCreated, isAuthenticated, onRequireAuth }) {
         condition: formData.condition,
       };
 
-      const response = await fetch('http://localhost:3000/api/listings', {
+      const response = await fetch(`${API_URL}/listings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -883,7 +885,7 @@ export default function App() {
       }
 
       const response = await fetch(
-        `http://localhost:3000/api/my-listings/${listingId}`,
+        `${API_URL}/my-listings/${listingId}`,
         {
           method: "DELETE",
           headers: {
@@ -927,7 +929,7 @@ export default function App() {
       }
 
       const response = await fetch(
-        "http://localhost:3000/api/conversations",
+        `${API_URL}/conversations`,
         {
           method: "POST",
           headers: {
@@ -966,7 +968,7 @@ export default function App() {
       }
 
       const response = await fetch(
-        `http://localhost:3000/api/my-listings/${listingId}/sold`,
+        `${API_URL}/my-listings/${listingId}/sold`,
         {
           method: "PATCH",
           headers: {
@@ -1038,7 +1040,7 @@ export default function App() {
         }
 
         const response = await fetch(
-          'http://localhost:3000/api/my-listings',
+          `${API_URL}/my-listings`,
           {
             headers: {
               Authorization: `Bearer ${session.access_token}`,
@@ -1070,7 +1072,7 @@ export default function App() {
     async function fetchListings() {
       try {
         const response = await fetch(
-          'http://localhost:3000/api/listings'
+          `${API_URL}/listings`
         );
 
         if (!response.ok) {

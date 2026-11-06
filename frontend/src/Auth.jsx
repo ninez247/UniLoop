@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import './Auth.css';
 import { supabase } from './supabaseClient';
 
-const API_URL = 'http://localhost:3000/api';
+import { API_URL } from "./api";
 
 function Auth() {
     const navigate = useNavigate();

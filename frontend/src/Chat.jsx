@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import "./Chat.css";
+import { API_URL } from "./api";
 
 function Chat() {
     const [conversations, setConversations] = useState([]);
@@ -23,7 +24,7 @@ function Chat() {
             if (error) throw error;
 
             const response = await fetch(
-                `http://localhost:3000/api/conversations/${conversation.conversation_id}/messages`,
+                `${API_URL}/conversations/${conversation.conversation_id}/messages`,
                 {
                     headers: {
                         Authorization: `Bearer ${session.access_token}`,
@@ -64,7 +65,7 @@ function Chat() {
             }
 
             const response = await fetch(
-                `http://localhost:3000/api/conversations/${selectedConversation.conversation_id}/messages`,
+                `${API_URL}/conversations/${selectedConversation.conversation_id}/messages`,
                 {
                     method: "POST",
                     headers: {
@@ -115,7 +116,7 @@ function Chat() {
                 setCurrentUserId(session.user.id);
 
                 const response = await fetch(
-                    "http://localhost:3000/api/conversations",
+                    `${API_URL}/conversations`,
                     {
                         headers: {
                             Authorization: `Bearer ${session.access_token}`,
@@ -171,12 +172,12 @@ function Chat() {
                         },
                         async () => {
                             console.log("REALTIME EVENT RECEIVED");
-                            
+
                             if (!isActive) return;
 
                             try {
                                 const response = await fetch(
-                                    `http://localhost:3000/api/conversations/${selectedConversation.conversation_id}/messages`,
+                                    `${API_URL}/conversations/${selectedConversation.conversation_id}/messages`,
                                     {
                                         headers: {
                                             Authorization: `Bearer ${session.access_token}`,
