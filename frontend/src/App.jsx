@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Auth from './Auth';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Chat from "./Chat";
-
+import Toast from "./Toast";
 import { API_URL } from "./api";
 
 const categories = [
@@ -44,6 +44,7 @@ function Navbar({
   onLogoutClick,
 }) {
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const fullName =
     user?.user_metadata?.full_name || "My Account";
@@ -57,7 +58,17 @@ function Navbar({
         Uni<span>Loop</span>
       </a>
 
-      <div className="links">
+      <button
+        className="mobile-menu-button"
+        type="button"
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+        aria-expanded={mobileMenuOpen}
+      >
+        {mobileMenuOpen ? "✕" : "☰"}
+      </button>
+
+      <div className={`links ${mobileMenuOpen ? "mobile-links-open" : ""}`}>
         <a href="#browse">Browse</a>
         <a href="#sell">Sell</a>
 
@@ -148,7 +159,7 @@ function Navbar({
           </div>
         )}
       </div>
-    </nav>
+    </nav >
   );
 }
 
@@ -211,13 +222,6 @@ function MyListingsSection({
         <span className="listing-count">
           {listings.length} {listings.length === 1 ? "item" : "items"}
         </span>
-      </div>
-
-      <div className="sold-notice">
-        <span>ℹ️</span>
-        <p>
-          Sold items will be automatically removed after 7 days.
-        </p>
       </div>
 
       {loading && <p>Loading your listings...</p>}
@@ -286,14 +290,6 @@ function MyListingsSection({
               <strong> {listingToMarkSold.title} </strong>
               as sold?
             </p>
-
-            <div className="sold-notice">
-              <span>ℹ️</span>
-              <p>
-                Sold items will be automatically removed
-                after 7 days.
-              </p>
-            </div>
 
             <div className="confirmation-actions">
               <button
@@ -474,15 +470,15 @@ function Hero(props) {
     <section className="container hero" id="top">
       <div className="hero-copy">
         <span className="badge">
-          WEBSITE PROTOTYPE · MANAGERIAL ECONOMICS
+          YOUR CAMPUS. YOUR MARKETPLACE.
         </span>
 
         <h1>Buy less. Sell smart. Stay in the loop.</h1>
 
         <p>
-          UniLoop is a campus-first marketplace for students to buy
-          and resell textbooks, calculators, lab coats, notes and
-          other academic essentials within a trusted college community.
+          Discover great deals, sell what you no longer need, and
+          connect with students across colleges. Everything your
+          campus community needs, all in one place.
         </p>
 
         <div className="hero-actions">
@@ -491,7 +487,7 @@ function Hero(props) {
           </a>
 
           <a className="button secondary" href="#about">
-            How verification works
+            How UniLoop works
           </a>
         </div>
       </div>
@@ -511,15 +507,15 @@ function BrowseSection({ products, query, activeCategory, selectedCollege,
     <section className="container" id="browse">
       <div className="section-title">
         <div>
-          <h2>Popular on your campus</h2>
+          <h2>Explore the Marketplace</h2>
           <p>
             {hasFilters
-              ? 'Results matching your search and filters.'
-              : 'Example inventory for the prototype.'}
+              ? 'Listings matching your search and filters.'
+              : 'Discover items listed by students across colleges.'}
           </p>
         </div>
 
-        <span className="meta">Campus radius: 5 km</span>
+        <span className="meta">Student Marketplace</span>
       </div>
 
 
@@ -691,31 +687,34 @@ function SellSection({ onListingCreated, isAuthenticated, onRequireAuth }) {
     }
   }
 
+
   const steps = [
     [
-      '1. Add item',
-      'Add item details, select category, condition and asking price.'],
-    [
-      '2. Get matched',
-      'Nearby students discover the listing through course and category filters.',
+      '1. List your item',
+      'Add the item details, choose a category and set your asking price.'
     ],
     [
-      '3. Meet & close',
-      'Choose campus pickup. UniLoop records the transaction for trust.',
+      '2. Get discovered',
+      'Students across participating colleges can discover your listing.'
     ],
     [
-      '4. Pay 8%',
-      'Illustrative seller commission; no upfront listing fee in the launch model.',
+      '3. Connect with buyers',
+      'Chat directly with interested students through UniLoop.'
+    ],
+    [
+      '4. Meet & complete the sale',
+      'Arrange a convenient meetup and complete the payment directly with the buyer.'
     ],
   ];
+
 
   return (
     <section className="container" id="sell">
       <div className="sell-panel">
         <div className="section-title">
           <div>
-            <h2>Sell in three steps</h2>
-            <p>Prototype seller flow.</p>
+            <h2>Start selling on UniLoop</h2>
+            <p>List your item and connect with interested students.</p>
           </div>
         </div>
 
@@ -915,20 +914,31 @@ function AboutSection() {
     <section className="container" id="about">
       <div className="section-title">
         <div>
-          <h2>Prototype notes</h2>
-          <p>
-            Designed to demonstrate the product, customer journey
-            and economic logic.
-          </p>
+          <h2>How UniLoop Works</h2>
+          <p>A simple way to buy and sell within the student community.</p>
         </div>
       </div>
 
-      <div className="card about-card">
-        <p>
-          <b>Important:</b> This is a clickable academic prototype.
-          Inventory, verification, payments and delivery are
-          illustrative. No real transaction is processed yet.
-        </p>
+      <div className="features">
+        <div className="feature">
+          <b>Discover Listings</b>
+          <p>Browse items listed by students across participating colleges.</p>
+        </div>
+
+        <div className="feature">
+          <b>Connect Directly</b>
+          <p>Use in-app messaging to communicate with sellers and buyers.</p>
+        </div>
+
+        <div className="feature">
+          <b>Arrange a Meetup</b>
+          <p>Discuss a convenient place and time to exchange the item.</p>
+        </div>
+
+        <div className="feature">
+          <b>Complete Your Deal</b>
+          <p>Buyers and sellers arrange payment directly between themselves.</p>
+        </div>
       </div>
     </section>
   );
@@ -936,13 +946,39 @@ function AboutSection() {
 
 function Footer() {
   return (
-    <footer>
-      UniLoop — Managerial Economics Experiential Learning Prototype
-      · Prepared as an academic concept.
+    <footer className="site-footer">
+      <div className="footer-content">
+        <div className="footer-brand">
+          <a className="footer-logo" href="#top">
+            Uni<span>Loop</span>
+          </a>
+          <p>
+            Your campus marketplace.
+            Buy, sell and discover more within your college community.
+          </p>
+        </div>
+
+        <div className="footer-links">
+          <h4>Explore</h4>
+          <a href="#browse">Browse Listings</a>
+          <a href="#sell">Sell an Item</a>
+          <a href="#features">Why UniLoop?</a>
+        </div>
+
+        <div className="footer-links">
+          <h4>Account</h4>
+          <a href="/login">Login / Sign Up</a>
+          <a href="/chat">Messages</a>
+        </div>
+      </div>
+
+      <div className="footer-bottom">
+        <p>© {new Date().getFullYear()} UniLoop. All rights reserved.</p>
+        <p>Connecting campus communities.</p>
+      </div>
     </footer>
   );
 }
-
 
 export default function App() {
   const [query, setQuery] = useState('');
@@ -970,6 +1006,25 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const navigate = useNavigate();
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "success") => {
+    setToast({
+      id: Date.now(),
+      message,
+      type,
+    });
+  };
+
+  useEffect(() => {
+    if (!toast) return;
+
+    const timer = setTimeout(() => {
+      setToast(null);
+    }, 3500);
+
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -1018,11 +1073,11 @@ export default function App() {
         prev.filter((item) => item.id !== listingId)
       );
 
-      alert("Listing deleted successfully!");
+      showToast("Listing deleted successfully!");
 
     } catch (error) {
       console.error("Error deleting listing:", error);
-      alert(error.message);
+      showToast(error.message, "error");
     }
   };
 
@@ -1034,7 +1089,7 @@ export default function App() {
       if (error) throw error;
 
       if (!session) {
-        alert("Please log in to contact the seller.");
+        showToast("Please log in to contact the seller.", "info");
         return;
       }
 
@@ -1062,7 +1117,7 @@ export default function App() {
 
     } catch (error) {
       console.error("Error opening conversation:", error);
-      alert(error.message);
+      showToast(error.message, "error");
     }
   };
 
@@ -1105,11 +1160,11 @@ export default function App() {
         prev.filter((item) => item.id !== listingId)
       );
 
-      alert("Listing marked as sold!");
+      showToast("Listing marked as sold successfully");
 
     } catch (error) {
       console.error("Error marking listing as sold:", error);
-      alert(error.message);
+      showToast(error.message, "error");
     }
   };
 
@@ -1234,101 +1289,110 @@ export default function App() {
   }, [products, query, activeCategory, selectedCollege]);
 
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <>
-            <Navbar
-              onSellClick={() => {
-                document.getElementById('sell')?.scrollIntoView({
-                  behavior: 'smooth',
-                });
-              }}
-              onMessagesClick={() => navigate('/chat')}
-              user={user}
-              onLoginClick={() => navigate('/login')}
-              onLogoutClick={handleLogout}
-              isAuthenticated={!!user}
-              onMyListingsClick={() => {
-                document.getElementById('my-listings')?.scrollIntoView({
-                  behavior: 'smooth',
-                });
-              }}
-            />
-
-            <main>
-              <Hero
-                query={query}
-                setQuery={setQuery}
-                activeCategory={activeCategory}
-                setActiveCategory={setActiveCategory}
-                selectedCollege={selectedCollege}
-                setSelectedCollege={setSelectedCollege}
-                collegeOptions={collegeOptions}
-                filteredProducts={filteredProducts}
-                loading={loading}
-                error={error}
-              />
-
-              <BrowseSection
-                products={filteredProducts}
-                query={query}
-                activeCategory={activeCategory}
-                selectedCollege={selectedCollege}
-                loading={loading}
-                error={error}
-                onContactSeller={handleContactSeller}
-                currentUserId={user?.id}
-              />
-
-              {user && (
-                <MyListingsSection
-                  listings={myListings}
-                  loading={myListingsLoading}
-                  error={myListingsError}
-                  onMarkAsSold={handleMarkAsSold}
-                  onConfirmSold={setListingToMarkSold}
-                  listingToMarkSold={listingToMarkSold}
-                  setListingToMarkSold={setListingToMarkSold}
-                  onConfirmDelete={setListingToDelete}
-                  onDeleteListing={handleDeleteListing}
-                  listingToDelete={listingToDelete}
-                  setListingToDelete={setListingToDelete}
-                />
-              )}
-
-              <FeaturesSection />
-
-              <SellSection
-                onListingCreated={(newListing) => {
-                  setProducts((previousProducts) => [
-                    newListing,
-                    ...previousProducts,
-                  ]);
+    <>
+      {toast && (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )
+      }
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <>
+              <Navbar
+                onSellClick={() => {
+                  document.getElementById('sell')?.scrollIntoView({
+                    behavior: 'smooth',
+                  });
                 }}
+                onMessagesClick={() => navigate('/chat')}
+                user={user}
+                onLoginClick={() => navigate('/login')}
+                onLogoutClick={handleLogout}
                 isAuthenticated={!!user}
-                onRequireAuth={() => navigate('/login')}
+                onMyListingsClick={() => {
+                  document.getElementById('my-listings')?.scrollIntoView({
+                    behavior: 'smooth',
+                  });
+                }}
               />
 
-              <EconomicsSection />
-              <AboutSection />
-            </main>
+              <main>
+                <Hero
+                  query={query}
+                  setQuery={setQuery}
+                  activeCategory={activeCategory}
+                  setActiveCategory={setActiveCategory}
+                  selectedCollege={selectedCollege}
+                  setSelectedCollege={setSelectedCollege}
+                  collegeOptions={collegeOptions}
+                  filteredProducts={filteredProducts}
+                  loading={loading}
+                  error={error}
+                />
 
-            <Footer />
-          </>
-        }
-      />
-      <Route path="/login" element={<Auth />} />
+                <BrowseSection
+                  products={filteredProducts}
+                  query={query}
+                  activeCategory={activeCategory}
+                  selectedCollege={selectedCollege}
+                  loading={loading}
+                  error={error}
+                  onContactSeller={handleContactSeller}
+                  currentUserId={user?.id}
+                />
 
-      <Route
-        path="/chat"
-        element={
-          user ? <Chat /> : <Navigate to="/login" replace />
-        }
-      />
+                {user && (
+                  <MyListingsSection
+                    listings={myListings}
+                    loading={myListingsLoading}
+                    error={myListingsError}
+                    onMarkAsSold={handleMarkAsSold}
+                    onConfirmSold={setListingToMarkSold}
+                    listingToMarkSold={listingToMarkSold}
+                    setListingToMarkSold={setListingToMarkSold}
+                    onConfirmDelete={setListingToDelete}
+                    onDeleteListing={handleDeleteListing}
+                    listingToDelete={listingToDelete}
+                    setListingToDelete={setListingToDelete}
+                  />
+                )}
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+                <FeaturesSection />
+
+                <SellSection
+                  onListingCreated={(newListing) => {
+                    setProducts((previousProducts) => [
+                      newListing,
+                      ...previousProducts,
+                    ]);
+                  }}
+                  isAuthenticated={!!user}
+                  onRequireAuth={() => navigate('/login')}
+                />
+                <AboutSection />
+              </main>
+
+              <Footer />
+            </>
+          }
+        />
+        <Route path="/login" element={<Auth />} />
+
+        <Route
+          path="/chat"
+          element={
+            user ? <Chat /> : <Navigate to="/login" replace />
+          }
+        />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }
