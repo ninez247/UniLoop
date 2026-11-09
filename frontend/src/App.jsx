@@ -47,6 +47,8 @@ function Navbar({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef(null);
   const mobileMenuButtonRef = useRef(null);
+  const profileMenuRef = useRef(null);
+  const profileButtonRef = useRef(null);
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -107,6 +109,30 @@ function Navbar({
       document.removeEventListener("keydown", handleEscape);
     };
   }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+
+    function handleOutsideClick(event) {
+      if (!profileMenuRef.current?.contains(event.target)) {
+        setProfileOpen(false);
+      }
+    }
+
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setProfileOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [profileOpen]);
 
   const fullName =
     user?.user_metadata?.full_name || "My Account";
@@ -190,8 +216,11 @@ function Navbar({
             Login
           </button>
         ) : (
-          <div className="profile-wrapper">
+          <div className="profile-wrapper"
+            ref={profileMenuRef}
+          >
             <button
+              ref={profileButtonRef}
               className="profile-button"
               type="button"
               onClick={() => setProfileOpen(!profileOpen)}
