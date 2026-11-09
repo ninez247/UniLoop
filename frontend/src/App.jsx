@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Auth from './Auth';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Chat from "./Chat";
@@ -45,6 +45,68 @@ function Navbar({
 }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef(null);
+  const mobileMenuButtonRef = useRef(null);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    function handleOutsideClick(event) {
+      const clickedInsideMenu =
+        mobileMenuRef.current?.contains(event.target);
+
+      const clickedMenuButton =
+        mobileMenuButtonRef.current?.contains(event.target);
+
+      if (!clickedInsideMenu && !clickedMenuButton) {
+        setMobileMenuOpen(false);
+      }
+    }
+
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setMobileMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    function handleOutsideClick(event) {
+      const clickedInsideMenu =
+        mobileMenuRef.current?.contains(event.target);
+
+      const clickedMenuButton =
+        mobileMenuButtonRef.current?.contains(event.target);
+
+      if (!clickedInsideMenu && !clickedMenuButton) {
+        setMobileMenuOpen(false);
+      }
+    }
+
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setMobileMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [mobileMenuOpen]);
 
   const fullName =
     user?.user_metadata?.full_name || "My Account";
@@ -59,6 +121,7 @@ function Navbar({
       </a>
 
       <button
+        ref={mobileMenuButtonRef}
         className="mobile-menu-button"
         type="button"
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -68,9 +131,21 @@ function Navbar({
         {mobileMenuOpen ? "✕" : "☰"}
       </button>
 
-      <div className={`links ${mobileMenuOpen ? "mobile-links-open" : ""}`}>
+      <div
+        ref={mobileMenuRef}
+        className={`links ${mobileMenuOpen ? "mobile-links-open" : ""}`}
+        onClick={() => setMobileMenuOpen(false)}
+      >
         <a href="#browse">Browse</a>
-        <a href="#sell">Sell</a>
+        <a href="#sell"
+          onClick={(event) => {
+            event.preventDefault();
+            onSellClick();
+            setMobileMenuOpen(false);
+          }}
+        >
+          Sell
+        </a>
 
         {isAuthenticated && (
           <button
@@ -1431,7 +1506,7 @@ export default function App() {
             </>
           }
         />
-        
+
         <Route path="/login"
           element={<Auth onShowToast={showToast} />}
         />
