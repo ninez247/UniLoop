@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient';
 import { useEffect, useMemo, useState } from "react";
 import Auth from './Auth';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Chat from "./Chat";
 import Toast from "./Toast";
 import { API_URL } from "./api";
@@ -550,20 +550,20 @@ function BrowseSection({ products, query, activeCategory, selectedCollege,
 function FeaturesSection() {
   const features = [
     [
-      '🎓 Campus-only',
-      'Listings are organized around participating colleges, reducing irrelevant results.',
+      '🎓 Across Colleges',
+      'Discover listings from students across participating colleges, all in one marketplace.',
     ],
     [
-      '✓ Verified students',
-      'The planned verification flow uses college email or student ID checks.',
+      '💬 Direct Messaging',
+      'Connect with sellers through UniLoop’s built-in chat before arranging a deal.',
     ],
     [
-      '₹ Lower total cost',
-      'Local pickup avoids shipping and makes second-hand academic essentials affordable.',
+      '₹ Affordable Finds',
+      'Discover pre-owned books, electronics and everyday essentials at student-friendly prices.',
     ],
     [
-      '♻ Circular value',
-      'Items get a second use instead of becoming idle after a semester.',
+      '♻ Give Items a Second Life',
+      'Sell items you no longer need and help other students get more value from them.',
     ],
   ];
 
@@ -573,8 +573,7 @@ function FeaturesSection() {
         <div>
           <h2>Why students choose UniLoop</h2>
           <p>
-            Utility comes from lower search cost, trust and convenience.
-          </p>
+            Discover useful deals, connect directly with students and make more of what you already have.          </p>
         </div>
       </div>
 
@@ -590,9 +589,23 @@ function FeaturesSection() {
   );
 }
 
-function SellSection({ onListingCreated, isAuthenticated, onRequireAuth }) {
+function SellSection({
+  onListingCreated,
+  isAuthenticated,
+  onRequireAuth,
+  shouldOpenSellForm,
+  onSellFormOpened, }) {
   const [showForm, setShowForm] = useState(false);
+  useEffect(() => {
+    if (shouldOpenSellForm) {
+      setShowForm(true);
+      onSellFormOpened();
 
+      document.getElementById('sell')?.scrollIntoView({
+        behavior: 'smooth',
+      });
+    }
+  }, [shouldOpenSellForm, onSellFormOpened]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -1004,8 +1017,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [user, setUser] = useState(null);
+  const [shouldOpenSellForm, setShouldOpenSellForm] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const [toast, setToast] = useState(null);
 
   const showToast = (message, type = "success") => {
@@ -1089,7 +1104,12 @@ export default function App() {
       if (error) throw error;
 
       if (!session) {
-        showToast("Please log in to contact the seller.", "info");
+        navigate('/login', {
+          state: {
+            action: 'contact',
+            listingId,
+          },
+        });
         return;
       }
 
@@ -1183,6 +1203,29 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user || !location.state?.action) return;
+
+    const pendingAction = location.state;
+
+    // Clear the saved action so it cannot execute twice.
+    navigate('/', {
+      replace: true,
+      state: null,
+    });
+
+    if (
+      pendingAction.action === 'contact' &&
+      pendingAction.listingId
+    ) {
+      handleContactSeller(pendingAction.listingId);
+    }
+
+    if (pendingAction.action === 'sell') {
+      setShouldOpenSellForm(true);
+    }
+  }, [user, location.state, navigate]);
 
   useEffect(() => {
     if (!user) {
@@ -1373,7 +1416,13 @@ export default function App() {
                     ]);
                   }}
                   isAuthenticated={!!user}
-                  onRequireAuth={() => navigate('/login')}
+                  onRequireAuth={() => navigate('/login', {
+                    state: {
+                      action: 'sell',
+                    },
+                  })}
+                  shouldOpenSellForm={shouldOpenSellForm}
+                  onSellFormOpened={() => setShouldOpenSellForm(false)}
                 />
                 <AboutSection />
               </main>
@@ -1382,7 +1431,10 @@ export default function App() {
             </>
           }
         />
-        <Route path="/login" element={<Auth />} />
+        
+        <Route path="/login"
+          element={<Auth onShowToast={showToast} />}
+        />
 
         <Route
           path="/chat"

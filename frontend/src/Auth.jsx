@@ -1,14 +1,14 @@
 
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import './Auth.css';
 import { supabase } from './supabaseClient';
 
 import { API_URL } from "./api";
 
-function Auth() {
+function Auth({ onShowToast }) {
     const navigate = useNavigate();
-
+    const location = useLocation();
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -113,7 +113,10 @@ function Auth() {
                     throw new Error(profileData.error || 'Failed to save profile.');
                 }
 
-                navigate('/');
+                navigate('/', {
+                    state: location.state,
+                });
+
             } else {
                 const { error } = await supabase.auth.signUp({
                     email: email.trim(),
@@ -134,7 +137,11 @@ function Auth() {
                 );
             }
         } catch (error) {
-            setMessage(error.message);
+            if (isLogin) {
+                onShowToast(error.message, "error");
+            } else {
+                setMessage(error.message);
+            }
         } finally {
             setLoading(false);
         }
