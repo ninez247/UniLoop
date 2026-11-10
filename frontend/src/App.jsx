@@ -38,6 +38,7 @@ function Navbar({
   onSellClick,
   onMyListingsClick,
   onMessagesClick,
+  unreadCount,
   isAuthenticated,
   user,
   onLoginClick,
@@ -205,6 +206,11 @@ function Navbar({
               <rect x="3" y="4" width="18" height="16" rx="3" />
               <path d="m3 7 9 6 9-6" />
             </svg>
+            {unreadCount > 0 && (
+              <span className="unread-badge">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </button>
         )}
 
@@ -1121,6 +1127,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [user, setUser] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [shouldOpenSellForm, setShouldOpenSellForm] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const navigate = useNavigate();
@@ -1309,6 +1316,113 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+
+    let isActive = true;
+
+    const fetchUnreadCount = async () => {
+      try {
+        const { data: { session }, error } =
+          await supabase.auth.getSession();
+
+        if (error) throw error;
+        if (!session) return;
+
+        const response = await fetch(
+          `${API_URL}/conversations/unread-count`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to fetch unread count.");
+        }
+
+        if (isActive) {
+          setUnreadCount(data.unreadCount);
+        }
+      } catch (error) {
+        console.error("Error fetching unread count:", error);
+      }
+    };
+
+    fetchUnreadCount();
+
+    return () => {
+      isActive = false;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let channel;
+
+    const setupUnreadSubscription = async () => {
+      try {
+        const { data: { session }, error } =
+          await supabase.auth.getSession();
+
+        if (error) throw error;
+        if (!session) return;
+
+        await supabase.realtime.setAuth(session.access_token);
+
+        channel = supabase
+          .channel(`unread-messages-${user.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "messages",
+            },
+            async () => {
+              const { data: { session: currentSession } } =
+                await supabase.auth.getSession();
+
+              if (!currentSession) return;
+
+              const response = await fetch(
+                `${API_URL}/conversations/unread-count`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${currentSession.access_token}`,
+                  },
+                }
+              );
+
+              const data = await response.json();
+
+              if (response.ok) {
+                setUnreadCount(data.unreadCount);
+              }
+            }
+          )
+          .subscribe();
+      } catch (error) {
+        console.error("Unread subscription error:", error);
+      }
+    };
+
+    setupUnreadSubscription();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [user]);
+
+  useEffect(() => {
     if (!user || !location.state?.action) return;
 
     const pendingAction = location.state;
@@ -1458,6 +1572,7 @@ export default function App() {
                   });
                 }}
                 onMessagesClick={() => navigate('/chat')}
+                unreadCount={unreadCount}
                 user={user}
                 onLoginClick={() => navigate('/login')}
                 onLogoutClick={handleLogout}
@@ -1543,8 +1658,7 @@ export default function App() {
         <Route
           path="/chat"
           element={
-            user ? <Chat /> : <Navigate to="/login" replace />
-          }
+            user ? <Chat onUnreadCountChange={setUnreadCount} /> : <Navigate to="/login" replace />}
         />
 
         <Route path="*" element={<Navigate to="/" replace />} />

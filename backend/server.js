@@ -153,7 +153,15 @@ app.get("/api/conversations", authenticateUser, async (req, res) => {
           ELSE c.buyer_supabase_user_id
         END AS other_user_id,
         p.full_name AS other_user_name,
-        c.created_at
+        c.created_at,
+
+(
+    SELECT COUNT(*)::int
+    FROM messages m
+    WHERE m.conversation_id = c.id
+    AND m.sender_supabase_user_id <> $1
+    AND m.read_at IS NULL
+) AS unread_count
       FROM conversations c
       JOIN listings l
         ON c.listing_id = l.id
@@ -179,6 +187,93 @@ app.get("/api/conversations", authenticateUser, async (req, res) => {
 
         res.status(500).json({
             error: "Failed to fetch conversations."
+        });
+    }
+});
+
+// Get total unread messages for the logged-in user
+app.get("/api/conversations/unread-count", authenticateUser, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const result = await pool.query(
+            `SELECT COUNT(*)::int AS unread_count
+             FROM messages m
+             JOIN conversations c
+                ON m.conversation_id = c.id
+             WHERE m.sender_supabase_user_id <> $1
+             AND m.read_at IS NULL
+             AND (
+                c.buyer_supabase_user_id = $1
+                OR c.seller_supabase_user_id = $1
+             )`,
+            [userId]
+        );
+
+        res.status(200).json({
+            unreadCount: result.rows[0].unread_count
+        });
+
+    } catch (error) {
+        console.error("Error fetching unread count:", error.message);
+
+        res.status(500).json({
+            error: "Failed to fetch unread message count."
+        });
+    }
+});
+
+// Mark incoming messages in a conversation as read
+app.patch("/api/conversations/:id/read", authenticateUser, async (req, res) => {
+    try {
+        const conversationId = Number(req.params.id);
+        const userId = req.user.id;
+
+        if (!Number.isInteger(conversationId) || conversationId <= 0) {
+            return res.status(400).json({
+                error: "A valid conversation ID is required."
+            });
+        }
+
+        // Verify that the logged-in user belongs to this conversation
+        const conversationResult = await pool.query(
+            `SELECT id
+             FROM conversations
+             WHERE id = $1
+             AND (
+                buyer_supabase_user_id = $2
+                OR seller_supabase_user_id = $2
+             )`,
+            [conversationId, userId]
+        );
+
+        if (conversationResult.rows.length === 0) {
+            return res.status(404).json({
+                error: "Conversation not found or access denied."
+            });
+        }
+
+        // Mark only messages sent by the other participant as read
+        const result = await pool.query(
+            `UPDATE messages
+             SET read_at = NOW()
+             WHERE conversation_id = $1
+             AND sender_supabase_user_id <> $2
+             AND read_at IS NULL
+             RETURNING id`,
+            [conversationId, userId]
+        );
+
+        res.status(200).json({
+            message: "Messages marked as read.",
+            updatedCount: result.rowCount
+        });
+
+    } catch (error) {
+        console.error("Error marking messages as read:", error.message);
+
+        res.status(500).json({
+            error: "Failed to mark messages as read."
         });
     }
 });

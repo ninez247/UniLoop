@@ -7,3 +7,7 @@ export const supabase = createClient(
   supabaseUrl,
   supabasePublishableKey
 );
+
+if (import.meta.env.DEV) {
+  window.supabase = supabase;
+}

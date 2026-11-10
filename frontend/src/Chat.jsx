@@ -4,17 +4,74 @@ import { supabase } from "./supabaseClient";
 import "./Chat.css";
 import { API_URL } from "./api";
 
-function Chat() {
+function Chat({ onUnreadCountChange }) {
     const [searchParams] = useSearchParams();
     const requestedConversationId = searchParams.get("conversation");
     const [conversations, setConversations] = useState([]);
     const [selectedConversation, setSelectedConversation] = useState(null);
+    const selectedConversationIdRef = useRef(null);
+    selectedConversationIdRef.current = selectedConversation?.conversation_id ?? null;
+
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [currentUserId, setCurrentUserId] = useState(null);
     const [newMessage, setNewMessage] = useState("");
     const [sending, setSending] = useState(false);
     const messagesEndRef = useRef(null);
+
+    const markConversationAsRead = async (conversationId) => {
+        try {
+            const { data: { session }, error } =
+                await supabase.auth.getSession();
+
+            if (error) throw error;
+            if (!session) return;
+
+            const response = await fetch(
+                `${API_URL}/conversations/${conversationId}/read`,
+                {
+                    method: "PATCH",
+                    headers: {
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to mark messages as read.");
+            }
+
+            const countResponse = await fetch(
+                `${API_URL}/conversations/unread-count`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
+                }
+            );
+
+            const countData = await countResponse.json();
+
+            if (!countResponse.ok) {
+                throw new Error("Failed to refresh unread count.");
+            }
+
+            onUnreadCountChange?.(countData.unreadCount);
+
+            setConversations((previousConversations) =>
+                previousConversations.map((conversation) =>
+                    conversation.conversation_id === conversationId
+                        ? { ...conversation, unread_count: 0 }
+                        : conversation
+                )
+            );
+
+        } catch (error) {
+            console.error("Error marking conversation as read:", error);
+        }
+    };
 
     const handleSelectConversation = async (conversation) => {
         setSelectedConversation(conversation);
@@ -42,6 +99,8 @@ function Chat() {
             }
 
             setMessages(data.messages);
+
+            await markConversationAsRead(conversation.conversation_id);
 
         } catch (error) {
             console.error("Error fetching messages:", error);
@@ -146,6 +205,90 @@ function Chat() {
     }, []);
 
     useEffect(() => {
+        let channel;
+        let isActive = true;
+
+        const setupConversationSubscription = async () => {
+            try {
+                const {
+                    data: { session },
+                    error,
+                } = await supabase.auth.getSession();
+
+                if (error) throw error;
+                if (!session || !isActive) return;
+
+                await supabase.realtime.setAuth(session.access_token);
+
+                if (!isActive) return;
+
+                channel = supabase
+                    .channel("all-conversation-messages")
+                    .on(
+                        "postgres_changes",
+                        {
+                            event: "INSERT",
+                            schema: "public",
+                            table: "messages",
+                        },
+                        async () => {
+                            if (!isActive) return;
+
+                            try {
+                                const response = await fetch(
+                                    `${API_URL}/conversations`,
+                                    {
+                                        headers: {
+                                            Authorization: `Bearer ${session.access_token}`,
+                                        },
+                                    }
+                                );
+
+                                const data = await response.json();
+
+                                if (!response.ok) {
+                                    throw new Error(
+                                        "Failed to refresh conversations."
+                                    );
+                                }
+
+                                if (!isActive) return;
+
+                                setConversations(
+                                    data.conversations.map((conversation) =>
+                                        conversation.conversation_id ===
+                                            selectedConversationIdRef.current
+                                            ? { ...conversation, unread_count: 0 }
+                                            : conversation
+                                    )
+                                );
+                            } catch (error) {
+                                console.error(
+                                    "Error refreshing conversation counts:",
+                                    error
+                                );
+                            }
+                        }
+                    )
+                    .subscribe();
+
+            } catch (error) {
+                console.error("Conversation subscription error:", error);
+            }
+        };
+
+        setupConversationSubscription();
+
+        return () => {
+            isActive = false;
+
+            if (channel) {
+                supabase.removeChannel(channel);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
         if (!requestedConversationId || conversations.length === 0) {
             return;
         }
@@ -178,7 +321,6 @@ function Chat() {
 
                 if (error) throw error;
                 if (!session) return;
-                console.log("Realtime user ID:", session.user.id);
                 await supabase.realtime.setAuth(session.access_token);
 
                 channel = supabase
@@ -192,8 +334,6 @@ function Chat() {
                             filter: `conversation_id=eq.${selectedConversation.conversation_id}`,
                         },
                         async () => {
-                            console.log("REALTIME EVENT RECEIVED");
-
                             if (!isActive) return;
 
                             try {
@@ -216,15 +356,14 @@ function Chat() {
 
                                 if (isActive) {
                                     setMessages(data.messages);
+                                    await markConversationAsRead(selectedConversation.conversation_id);
                                 }
                             } catch (error) {
                                 console.error("Error refreshing messages:", error);
                             }
                         }
                     )
-                    .subscribe((status) => {
-                        console.log("Realtime subscription status:", status);
-                    });
+                    .subscribe();
 
             } catch (error) {
                 console.error("Realtime subscription error:", error);
@@ -251,35 +390,56 @@ function Chat() {
 
     return (
         <div className="chat-screen">
-            <div className="chat-page">
-                <aside className="chat-sidebar">
-                    <h2>Messages</h2>
-                    <div className="conversation-list">
-                        {loading ? (
-                            <p>Loading conversations...</p>
-                        ) : conversations.length === 0 ? (
-                            <p>No conversations yet.</p>
-                        ) : (
-                            conversations.map((conversation) => (
-                                <div
-                                    key={conversation.conversation_id}
-                                    className="conversation-item"
-                                    onClick={() => handleSelectConversation(conversation)}
-                                >
+            <div className={`chat-page ${selectedConversation ? "conversation-open" : ""}`}>                <aside className="chat-sidebar">
+                <h2>Messages</h2>
+                <div className="conversation-list">
+                    {loading ? (
+                        <p>Loading conversations...</p>
+                    ) : conversations.length === 0 ? (
+                        <p>No conversations yet.</p>
+                    ) : (
+                        conversations.map((conversation) => (
+                            <div
+                                key={conversation.conversation_id}
+                                className="conversation-item"
+                                onClick={() => handleSelectConversation(conversation)}
+                            >
+                                <div className="conversation-details">
                                     <h3>{conversation.other_user_name}</h3>
                                     <p>{conversation.listing_title}</p>
                                 </div>
-                            ))
-                        )}
-                    </div>
-                </aside>
+
+                                {conversation.unread_count > 0 && (
+                                    <span className="conversation-unread-badge">
+                                        {conversation.unread_count > 9
+                                            ? "9+"
+                                            : conversation.unread_count}
+                                    </span>
+                                )}
+                            </div>
+                        ))
+                    )}
+                </div>
+            </aside>
 
                 <main className="chat-main">
                     {selectedConversation ? (
                         <>
                             <header className="chat-header">
-                                <h2>{selectedConversation.other_user_name}</h2>
-                                <p>{selectedConversation.listing_title}</p>
+                                <button
+                                    className="mobile-back-button"
+                                    onClick={() => {
+                                        setSelectedConversation(null);
+                                        setMessages([]);
+                                    }}
+                                >
+                                    ←
+                                </button>
+
+                                <div>
+                                    <h2>{selectedConversation.other_user_name}</h2>
+                                    <p>{selectedConversation.listing_title}</p>
+                                </div>
                             </header>
 
                             <div className="messages-container">
