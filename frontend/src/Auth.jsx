@@ -113,9 +113,13 @@ function Auth({ onShowToast }) {
                     throw new Error(profileData.error || 'Failed to save profile.');
                 }
 
-                navigate('/', {
-                    state: location.state,
-                });
+                if (location.state?.action === "verify") {
+                    navigate("/verify-student", { replace: true });
+                } else {
+                    navigate("/", {
+                        state: location.state,
+                    });
+                }
 
             } else {
                 const { error } = await supabase.auth.signUp({
@@ -344,6 +348,14 @@ function Auth({ onShowToast }) {
                         >
                             {isLogin ? 'Sign Up' : 'Login'}
                         </button>
+                    </div>
+
+                    <div className="auth-verify">
+                        <span>Want to verify your student account?</span>
+
+                        <Link to="/verify-student">
+                            Get Verified
+                        </Link>
                     </div>
 
                 </div>

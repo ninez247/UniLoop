@@ -1,0 +1,91 @@
+.verification-page {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 30px 16px;
+    background: #f7f8fc;
+}
+
+.verification-card {
+    width: 100%;
+    max-width: 480px;
+    padding: 32px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.verification-card h2 {
+    margin: 0 0 10px;
+    color: #172033;
+    font-size: 25px;
+}
+
+.verification-card>p {
+    color: #687386;
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+.verification-field {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin-bottom: 22px;
+}
+
+.verification-field label {
+    font-weight: 600;
+    color: #263247;
+}
+
+.verification-field input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #dce1ea;
+    border-radius: 9px;
+    font: inherit;
+    box-sizing: border-box;
+}
+
+.verification-field input:focus {
+    outline: none;
+    border-color: #5265e8;
+    box-shadow: 0 0 0 3px rgba(82, 101, 232, 0.12);
+}
+
+.verification-field small {
+    color: #788397;
+    font-size: 12px;
+}
+
+.verification-message {
+    color: #b54747;
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+.verification-card form>button {
+    width: 100%;
+}
+
+.verification-back {
+    display: block;
+    margin: 18px auto 0;
+    border: none;
+    background: none;
+    color: #5265e8;
+    cursor: pointer;
+    font: inherit;
+}
+
+@media (max-width: 480px) {
+    .verification-card {
+        padding: 24px 20px;
+    }
+
+    .verification-card h2 {
+        font-size: 22px;
+    }
+}

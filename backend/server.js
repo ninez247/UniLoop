@@ -2,11 +2,35 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import pool from "./db.js";
-import supabase from "./supabase.js";
+import supabase, { adminSupabase } from "./supabase.js";
+import multer from "multer";
+import crypto from "crypto";
+import { createClient } from "@supabase/supabase-js";
+import { fileTypeFromBuffer } from "file-type";
 
 dotenv.config();
 
 const app = express();
+
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 5 * 1024 * 1024,
+    },
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = [
+            "image/jpeg",
+            "image/png",
+            "application/pdf",
+        ];
+
+        if (allowedTypes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error("Only JPG, PNG and PDF files are allowed."));
+        }
+    },
+});
 
 const allowedOrigins = [
     "http://localhost:5173",
@@ -47,6 +71,8 @@ async function authenticateUser(req, res, next) {
 
         req.user = data.user;
 
+        req.accessToken = token;
+
         next();
     } catch (error) {
         console.error("Authentication error:", error.message);
@@ -54,6 +80,77 @@ async function authenticateUser(req, res, next) {
             error: "Authentication verification failed",
         });
     }
+}
+
+async function requireAdmin(req, res, next) {
+    try {
+        const result = await pool.query(
+            `SELECT role
+             FROM admin_users
+             WHERE user_id = $1`,
+            [req.user.id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(403).json({
+                error: "Admin access denied."
+            });
+        }
+
+        req.adminRole = result.rows[0].role;
+
+        next();
+
+    } catch (error) {
+        console.error("Admin authorization error:", error.message);
+
+        res.status(500).json({
+            error: "Failed to verify admin permissions."
+        });
+    }
+}
+
+function requireAdminRole(...allowedRoles) {
+    return (req, res, next) => {
+        if (!allowedRoles.includes(req.adminRole)) {
+            return res.status(403).json({
+                error: "You do not have permission to perform this action."
+            });
+        }
+
+        next();
+    };
+}
+
+app.get(
+    "/api/admin/me",
+    authenticateUser,
+    requireAdmin,
+    (req, res) => {
+        res.json({
+            message: "Admin access granted.",
+            user_id: req.user.id,
+            role: req.adminRole
+        });
+    }
+);
+
+function getUserSupabaseClient(accessToken) {
+    return createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_PUBLISHABLE_KEY,
+        {
+            global: {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            },
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false,
+            },
+        }
+    );
 }
 
 app.post("/api/conversations", authenticateUser, async (req, res) => {
@@ -605,6 +702,469 @@ app.post("/api/profiles", authenticateUser, async (req, res) => {
         });
     }
 });
+
+app.get(
+    "/api/student-verification/status",
+    authenticateUser,
+    async (req, res) => {
+        try {
+            const result = await pool.query(
+                `SELECT
+                    status,
+                    submitted_at,
+                    reviewed_at,
+                    rejected_at,
+                    rejection_reason
+                 FROM student_verifications
+                 WHERE user_id = $1
+                 ORDER BY submitted_at DESC
+                 LIMIT 1`,
+                [req.user.id]
+            );
+
+            if (result.rows.length === 0) {
+                return res.json({
+                    status: "not_submitted",
+                });
+            }
+
+            const verification = result.rows[0];
+
+            let nextRetryAt = null;
+
+            if (
+                verification.status === "rejected" &&
+                verification.rejected_at
+            ) {
+                nextRetryAt = new Date(
+                    new Date(verification.rejected_at).getTime() +
+                    24 * 60 * 60 * 1000
+                ).toISOString();
+            }
+
+            res.json({
+                ...verification,
+                next_retry_at: nextRetryAt,
+            });
+
+        } catch (error) {
+            console.error("Verification status error:", error.message);
+
+            res.status(500).json({
+                error: "Failed to fetch verification status.",
+            });
+        }
+    }
+);
+
+// Fetch pending student verification applications for admins
+app.get(
+    "/api/admin/student-verifications",
+    authenticateUser,
+    requireAdmin,
+    requireAdminRole("super_admin", "verification_admin"),
+    async (req, res) => {
+        try {
+            const result = await pool.query(
+                `SELECT
+                    sv.id,
+                    sv.user_id,
+                    sv.status,
+                    sv.submitted_at,
+                    p.full_name,
+                    c.name AS college_name
+                 FROM student_verifications sv
+                 JOIN profiles p
+                    ON p.supabase_user_id = sv.user_id
+                 JOIN colleges c
+                    ON c.id = sv.college_id
+                 WHERE sv.status = 'pending'
+                 ORDER BY sv.submitted_at ASC`
+            );
+
+            res.json({
+                applications: result.rows
+            });
+
+        } catch (error) {
+            console.error(
+                "Admin verification fetch error:",
+                error.message
+            );
+
+            res.status(500).json({
+                error: "Failed to fetch verification applications."
+            });
+        }
+    }
+);
+
+
+app.get(
+    "/api/admin/student-verifications/:id/document",
+    authenticateUser,
+    requireAdmin,
+    requireAdminRole("super_admin", "verification_admin"),
+    async (req, res) => {
+        try {
+            const verificationId = Number(req.params.id);
+
+            if (!Number.isInteger(verificationId) || verificationId <= 0) {
+                return res.status(400).json({
+                    error: "Invalid verification ID."
+                });
+            }
+
+            const result = await pool.query(
+                `SELECT id_card_path
+                 FROM student_verifications
+                 WHERE id = $1
+                 AND status = 'pending'`,
+                [verificationId]
+            );
+
+            if (result.rows.length === 0) {
+                return res.status(404).json({
+                    error: "Pending verification application not found."
+                });
+            }
+
+            const filePath = result.rows[0].id_card_path;
+
+            const { data, error } = await adminSupabase
+                .storage
+                .from("student-id-cards")
+                .createSignedUrl(filePath, 60);
+
+            if (error) throw error;
+
+            res.json({
+                signedUrl: data.signedUrl
+            });
+
+        } catch (error) {
+            console.error("Admin document access error:", error.message);
+
+            res.status(500).json({
+                error: "Failed to generate secure document link."
+            });
+        }
+    }
+);
+
+app.patch(
+    "/api/admin/student-verifications/:id/review",
+    authenticateUser,
+    requireAdmin,
+    requireAdminRole("super_admin", "verification_admin"),
+    async (req, res) => {
+        const verificationId = Number(req.params.id);
+        const { decision, rejection_reason } = req.body;
+
+        if (!Number.isInteger(verificationId) || verificationId <= 0) {
+            return res.status(400).json({
+                error: "Invalid verification ID."
+            });
+        }
+
+        if (!["verified", "rejected"].includes(decision)) {
+            return res.status(400).json({
+                error: "Decision must be verified or rejected."
+            });
+        }
+
+        if (
+            decision === "rejected" &&
+            (
+                typeof rejection_reason !== "string" ||
+                !rejection_reason.trim() ||
+                rejection_reason.trim().length > 500
+            )
+        ) {
+            return res.status(400).json({
+                error: "A rejection reason of up to 500 characters is required."
+            });
+        }
+
+        let client;
+
+        try {
+            client = await pool.connect();
+
+            await client.query("BEGIN");
+
+            const existing = await client.query(
+                `SELECT id, status
+                 FROM student_verifications
+                 WHERE id = $1
+                 FOR UPDATE`,
+                [verificationId]
+            );
+
+            if (existing.rows.length === 0) {
+                await client.query("ROLLBACK");
+
+                return res.status(404).json({
+                    error: "Verification application not found."
+                });
+            }
+
+            if (existing.rows[0].status !== "pending") {
+                await client.query("ROLLBACK");
+
+                return res.status(409).json({
+                    error: "This application has already been reviewed."
+                });
+            }
+
+            const result = await client.query(
+                `UPDATE student_verifications
+     SET
+        status = $1,
+        reviewed_at = NOW(),
+        reviewed_by = $2,
+        rejected_at = CASE
+            WHEN $5 = 'rejected' THEN NOW()
+            ELSE NULL
+        END,
+        rejection_reason = CASE
+            WHEN $5 = 'rejected' THEN $3
+            ELSE NULL
+        END
+     WHERE id = $4
+     RETURNING id, status, reviewed_at, rejection_reason`,
+                [
+                    decision,
+                    req.user.id,
+                    decision === "rejected" ? rejection_reason.trim() : null,
+                    verificationId,
+                    decision
+                ]
+            );
+
+            await client.query("COMMIT");
+
+            res.json({
+                message: `Application ${decision} successfully.`,
+                application: result.rows[0]
+            });
+
+        } catch (error) {
+            if (client) {
+                await client.query("ROLLBACK").catch(() => { });
+            }
+
+            console.error("Verification review error:", error.message);
+
+            res.status(500).json({
+                error: "Failed to review verification application."
+            });
+
+        } finally {
+            client?.release();
+        }
+    }
+);
+
+app.post(
+    "/api/student-verification",
+    authenticateUser,
+    (req, res, next) => {
+        upload.single("id_card")(req, res, (error) => {
+            if (error) {
+                return res.status(400).json({
+                    error: error.message,
+                });
+            }
+            next();
+        });
+    },
+    async (req, res) => {
+        let uploadedPath = null;
+        let supabaseClient;
+
+        try {
+            const { student_id_number } = req.body;
+
+            if (!req.file) {
+                return res.status(400).json({
+                    error: "Please upload your college ID card.",
+                });
+            }
+
+            const detectedFileType = await fileTypeFromBuffer(req.file.buffer);
+
+            const allowedMimeTypes = [
+                "image/jpeg",
+                "image/png",
+                "application/pdf",
+            ];
+
+            if (
+                !detectedFileType ||
+                !allowedMimeTypes.includes(detectedFileType.mime) ||
+                detectedFileType.mime !== req.file.mimetype
+            ) {
+                return res.status(400).json({
+                    error: "Invalid file. Please upload a genuine JPG, PNG or PDF.",
+                });
+            }
+
+            if (
+                typeof student_id_number !== "string" ||
+                !student_id_number.trim() ||
+                student_id_number.trim().length > 100
+            ) {
+                return res.status(400).json({
+                    error: "Please enter a valid college ID number.",
+                });
+            }
+
+            if (!process.env.STUDENT_ID_HASH_SECRET) {
+                throw new Error("Student ID hash secret is missing.");
+            }
+
+            // Get the student's registered college.
+            const profileResult = await pool.query(
+                `SELECT college_id
+                 FROM profiles
+                 WHERE supabase_user_id = $1`,
+                [req.user.id]
+            );
+
+            if (profileResult.rows.length === 0) {
+                return res.status(404).json({
+                    error: "Please complete your profile first.",
+                });
+            }
+
+            const collegeId = profileResult.rows[0].college_id;
+
+            // Check previous verification status.
+            const previousResult = await pool.query(
+                `SELECT status, rejected_at
+                 FROM student_verifications
+                 WHERE user_id = $1
+                 ORDER BY submitted_at DESC
+                 LIMIT 1`,
+                [req.user.id]
+            );
+
+            const previous = previousResult.rows[0];
+
+            if (previous?.status === "pending") {
+                return res.status(409).json({
+                    error: "Your verification is already pending.",
+                });
+            }
+
+            if (previous?.status === "verified") {
+                return res.status(409).json({
+                    error: "Your student account is already verified.",
+                });
+            }
+
+            // Enforce the 24-hour retry period.
+            if (previous?.status === "rejected" && previous.rejected_at) {
+                const retryTime =
+                    new Date(previous.rejected_at).getTime() +
+                    24 * 60 * 60 * 1000;
+
+                if (Date.now() < retryTime) {
+                    return res.status(429).json({
+                        error: "You can retry verification after 24 hours.",
+                        next_retry_at: new Date(retryTime).toISOString(),
+                    });
+                }
+            }
+
+            // Hash the student ID using a secret HMAC key.
+            const normalizedId = student_id_number.trim().toUpperCase();
+
+            const studentIdHash = crypto
+                .createHmac(
+                    "sha256",
+                    process.env.STUDENT_ID_HASH_SECRET
+                )
+                .update(normalizedId)
+                .digest("hex");
+
+            // Create a user-scoped Supabase client.
+            supabaseClient = getUserSupabaseClient(req.accessToken);
+
+            const extensionByMimeType = {
+                "image/jpeg": "jpg",
+                "image/png": "png",
+                "application/pdf": "pdf",
+            };
+
+            const extension = extensionByMimeType[req.file.mimetype];
+
+            const fileName =
+                `${req.user.id}/${crypto.randomUUID()}.${extension}`;
+
+            // Upload ID card to the private bucket.
+            const { error: uploadError } = await supabaseClient
+                .storage
+                .from("student-id-cards")
+                .upload(fileName, req.file.buffer, {
+                    contentType: req.file.mimetype,
+                    upsert: false,
+                });
+
+            if (uploadError) {
+                throw uploadError;
+            }
+
+            uploadedPath = fileName;
+
+            // Save verification application in PostgreSQL.
+            const result = await pool.query(
+                `INSERT INTO student_verifications
+                 (user_id, college_id, student_id_number_hash, id_card_path)
+                 VALUES ($1, $2, $3, $4)
+                 RETURNING id, status, submitted_at`,
+                [
+                    req.user.id,
+                    collegeId,
+                    studentIdHash,
+                    uploadedPath,
+                ]
+            );
+
+            res.status(201).json({
+                message: "Verification application submitted successfully.",
+                verification: result.rows[0],
+            });
+
+        } catch (error) {
+            console.error(
+                "Student verification error:",
+                error.message
+            );
+
+            // Remove the uploaded file if database insertion fails.
+            if (uploadedPath && supabaseClient) {
+                await supabaseClient
+                    .storage
+                    .from("student-id-cards")
+                    .remove([uploadedPath])
+                    .catch(() => { });
+            }
+
+            if (error.code === "23505") {
+                return res.status(409).json({
+                    error: "A verification request or student ID already exists.",
+                });
+            }
+
+            res.status(500).json({
+                error: "Failed to submit verification application.",
+            });
+        }
+    }
+);
+
 
 app.get("/api/my-listings", authenticateUser, async (req, res) => {
     try {

@@ -265,3 +265,24 @@
     font-size: 12px;
     line-height: 1.5;
 }
+
+.auth-verify {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid #e5e7eb;
+    text-align: center;
+    font-size: 14px;
+    color: #687386;
+}
+
+.auth-verify a {
+    display: block;
+    margin-top: 6px;
+    color: #5265e8;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.auth-verify a:hover {
+    text-decoration: underline;
+}

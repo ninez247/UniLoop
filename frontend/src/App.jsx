@@ -5,6 +5,8 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import Chat from "./Chat";
 import Toast from "./Toast";
 import { API_URL } from "./api";
+import VerifyStudent from './VerifyStudent';
+import AdminDashboard from './AdminDashboard';
 
 const categories = [
   'All',
@@ -41,10 +43,12 @@ function Navbar({
   unreadCount,
   isAuthenticated,
   user,
+  verificationStatus,
   onLoginClick,
   onLogoutClick,
 }) {
   const [profileOpen, setProfileOpen] = useState(false);
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef(null);
   const mobileMenuButtonRef = useRef(null);
@@ -246,12 +250,41 @@ function Navbar({
                 <circle cx="12" cy="8" r="4" />
                 <path d="M4 21a8 8 0 0 1 16 0" />
               </svg>
+
+              {verificationStatus?.status === "verified" && (
+                <span className="profile-verification-badge verified-badge">
+                  ✓
+                </span>
+              )}
+
+              {verificationStatus?.status === "pending" && (
+                <span className="profile-verification-badge pending-badge">
+                  !
+                </span>
+              )}
+
             </button>
 
             {profileOpen && (
               <div className="profile-dropdown">
                 <strong>{fullName}</strong>
                 <span>{collegeName}</span>
+                <button
+                  type="button"
+                  className="verification-status-button"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    navigate("/verify-student");
+                  }}
+                >
+                  {verificationStatus?.status === "verified"
+                    ? "✓ Student Verified"
+                    : verificationStatus?.status === "pending"
+                      ? "⏳ Verification Pending"
+                      : verificationStatus?.status === "rejected"
+                        ? "⚠ Verification Rejected"
+                        : "Get Student Verified"}
+                </button>
 
                 <div className="profile-divider" />
 
@@ -1127,6 +1160,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [user, setUser] = useState(null);
+  const [verificationStatus, setVerificationStatus] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [shouldOpenSellForm, setShouldOpenSellForm] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
@@ -1314,6 +1348,47 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setVerificationStatus(null);
+      return;
+    }
+
+    async function fetchVerificationStatus() {
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error) throw error;
+        if (!session) return;
+
+        const response = await fetch(
+          `${API_URL}/student-verification/status`,
+          {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to fetch verification status.");
+        }
+
+        setVerificationStatus(data);
+
+      } catch (error) {
+        console.error("Verification status error:", error);
+      }
+    }
+
+    fetchVerificationStatus();
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -1574,6 +1649,7 @@ export default function App() {
                 onMessagesClick={() => navigate('/chat')}
                 unreadCount={unreadCount}
                 user={user}
+                verificationStatus={verificationStatus}
                 onLoginClick={() => navigate('/login')}
                 onLogoutClick={handleLogout}
                 isAuthenticated={!!user}
@@ -1653,6 +1729,24 @@ export default function App() {
 
         <Route path="/login"
           element={<Auth onShowToast={showToast} />}
+        />
+
+        <Route
+          path="/verify-student"
+          element={
+            user
+              ? <VerifyStudent />
+              : <Navigate
+                to="/login"
+                replace
+                state={{ action: "verify" }}
+              />
+          }
+        />
+
+        <Route
+          path="/admin"
+          element={<AdminDashboard />}
         />
 
         <Route
