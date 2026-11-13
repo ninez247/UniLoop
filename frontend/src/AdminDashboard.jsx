@@ -166,7 +166,7 @@ export default function AdminDashboard() {
     }, [admin]);
 
     useEffect(() => {
-        if (!admin) return;
+        if (admin?.role !== "super_admin") return;
 
         async function fetchActivities() {
             setActivityLoading(true);
@@ -210,7 +210,7 @@ export default function AdminDashboard() {
     }, [admin]);
 
     useEffect(() => {
-        if (!admin) return;
+        if (!["super_admin", "verification_admin"].includes(admin?.role)) return;
 
         async function fetchApplications() {
             setApplicationsLoading(true);
@@ -314,13 +314,15 @@ export default function AdminDashboard() {
                         Overview
                     </button>
 
-                    <button
-                        type="button"
-                        className={activeSection === "verification" ? "active" : ""}
-                        onClick={() => setActiveSection("verification")}
-                    >
-                        Student Verification
-                    </button>
+                    {["super_admin", "verification_admin"].includes(admin?.role) && (
+                        <button
+                            type="button"
+                            className={activeSection === "verification" ? "active" : ""}
+                            onClick={() => setActiveSection("verification")}
+                        >
+                            Student Verification
+                        </button>
+                    )}
 
                     {admin?.role === "super_admin" && (
                         <button
@@ -331,10 +333,6 @@ export default function AdminDashboard() {
                             Recent Activity
                         </button>
                     )}
-                    <button>User Management</button>
-                    <button>Reports</button>
-                    <button>Payments</button>
-                    <button>Settings</button>
                 </nav>
             </aside>
 
@@ -363,7 +361,11 @@ export default function AdminDashboard() {
                 {activeSection === "overview" && (
                     <>
                         <section className="admin-welcome">
-                            <h2>Welcome, Super Admin!</h2>
+                            <h2>
+                                Welcome, {admin.role
+                                    .replaceAll("_", " ")
+                                    .replace(/\b\w/g, (char) => char.toUpperCase())}!
+                            </h2>
                             <p>
                                 Your administrative access is active.
                             </p>
@@ -371,23 +373,56 @@ export default function AdminDashboard() {
 
                         <section className="admin-stats">
                             <div className="admin-stat-card">
-                                <h3>Total Students</h3>
+                                <div className="admin-stat-top">
+                                    <h3>Total Students</h3>
+                                    <span className="admin-stat-icon total-icon">
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="21"
+                                            height="21"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        >
+                                            <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                            <circle cx="10" cy="7" r="4" />
+                                            <path d="M20 21v-2a4 4 0 0 0-3-3.87" />
+                                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                        </svg>
+                                    </span>
+                                </div>
                                 <p>{stats.total_students}</p>
+                                <small>Registered on UniLoop</small>
                             </div>
 
                             <div className="admin-stat-card">
-                                <h3>Verified Students</h3>
+                                <div className="admin-stat-top">
+                                    <h3>Verified Students</h3>
+                                    <span className="admin-stat-icon verified-icon">✓</span>
+                                </div>
                                 <p>{stats.verified_students}</p>
+                                <small>Successfully verified</small>
                             </div>
 
                             <div className="admin-stat-card">
-                                <h3>Pending Applications</h3>
+                                <div className="admin-stat-top">
+                                    <h3>Pending Applications</h3>
+                                    <span className="admin-stat-icon pending-icon">◷</span>
+                                </div>
                                 <p>{stats.pending_applications}</p>
+                                <small>Awaiting review</small>
                             </div>
 
                             <div className="admin-stat-card">
-                                <h3>Rejected Applications</h3>
+                                <div className="admin-stat-top">
+                                    <h3>Rejected Applications</h3>
+                                    <span className="admin-stat-icon rejected-icon">×</span>
+                                </div>
                                 <p>{stats.rejected_applications}</p>
+                                <small>Not approved</small>
                             </div>
                         </section>
                     </>
@@ -403,50 +438,57 @@ export default function AdminDashboard() {
                         ) : activities.length === 0 ? (
                             <p>No admin activity recorded yet.</p>
                         ) : (
-                            <div className="admin-activity-list">
-                                {activities.map((activity) => (
-                                    <div className="admin-activity-card" key={activity.id}>
-                                        <div className="admin-activity-info">
-                                            <h3>
-                                                {activity.action === "verification_approved"
-                                                    ? "Student Verification Approved"
-                                                    : activity.action === "verification_rejected"
-                                                        ? "Student Verification Rejected"
-                                                        : activity.action}
-                                            </h3>
+                            <div className="admin-activity-table-wrapper">
+                                <table className="admin-activity-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Action</th>
+                                            <th>Application</th>
+                                            <th>Details</th>
+                                            <th>Administrator</th>
+                                            <th>Date & Time</th>
+                                        </tr>
+                                    </thead>
 
-                                            <p>
-                                                Application #{activity.target_id}
-                                            </p>
+                                    <tbody>
+                                        {activities.map((activity) => (
+                                            <tr key={activity.id}>
+                                                <td>
+                                                    <span className={
+                                                        activity.action === "verification_approved"
+                                                            ? "admin-activity-approved"
+                                                            : "admin-activity-rejected"
+                                                    }>
+                                                        {activity.action === "verification_approved"
+                                                            ? "Approved"
+                                                            : activity.action === "verification_rejected"
+                                                                ? "Rejected"
+                                                                : activity.action}
+                                                    </span>
+                                                </td>
 
-                                            {activity.details?.rejection_reason && (
-                                                <p>
-                                                    Reason: {activity.details.rejection_reason}
-                                                </p>
-                                            )}
+                                                <td>#{activity.target_id}</td>
 
-                                            <small>
-                                                Admin ID: {activity.admin_user_id}
-                                            </small>
+                                                <td>
+                                                    {activity.details?.rejection_reason ||
+                                                        "Verification approved"}
+                                                </td>
 
-                                            <small>
-                                                {new Date(activity.created_at).toLocaleString(
-                                                    "en-IN"
-                                                )}
-                                            </small>
-                                        </div>
+                                                <td>
+                                                    <span className="admin-role-label">
+                                                        {activity.admin_role
+                                                            .replaceAll("_", " ")
+                                                            .replace(/\b\w/g, (char) => char.toUpperCase())}
+                                                    </span>
+                                                </td>
 
-                                        <span className={
-                                            activity.action === "verification_approved"
-                                                ? "admin-activity-approved"
-                                                : "admin-activity-rejected"
-                                        }>
-                                            {activity.action === "verification_approved"
-                                                ? "Approved"
-                                                : "Rejected"}
-                                        </span>
-                                    </div>
-                                ))}
+                                                <td>
+                                                    {new Date(activity.created_at).toLocaleString("en-IN")}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         )}
                     </section>

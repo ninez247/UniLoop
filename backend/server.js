@@ -184,16 +184,19 @@ app.get(
         try {
             const result = await pool.query(
                 `SELECT
-                    id,
-                    admin_user_id,
-                    action,
-                    target_type,
-                    target_id,
-                    details,
-                    created_at
-                 FROM admin_activity_logs
-                 ORDER BY created_at DESC
-                 LIMIT 10`
+    logs.id,
+    logs.admin_user_id,
+    logs.action,
+    logs.target_type,
+    logs.target_id,
+    logs.details,
+    logs.created_at,
+    COALESCE(admins.role, 'administrator') AS admin_role
+FROM admin_activity_logs AS logs
+LEFT JOIN admin_users AS admins
+    ON logs.admin_user_id = admins.user_id
+ORDER BY logs.created_at DESC
+LIMIT 10`
             );
 
             res.json({
