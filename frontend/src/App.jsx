@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient';
 import { useEffect, useMemo, useRef, useState } from "react";
 import Auth from './Auth';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, Link, useNavigate, useLocation } from 'react-router-dom';
 import Chat from "./Chat";
 import Toast from "./Toast";
 import { API_URL } from "./api";
@@ -1124,7 +1124,7 @@ function Footer() {
         <div className="footer-links">
           <h4>Account</h4>
           <a href="/login">Login / Sign Up</a>
-          <a href="/chat">Messages</a>
+          <Link to="/chat">Messages</Link>
         </div>
       </div>
 

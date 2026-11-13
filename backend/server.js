@@ -135,6 +135,81 @@ app.get(
     }
 );
 
+// Fetch overview statistics for the admin dashboard
+app.get(
+    "/api/admin/overview",
+    authenticateUser,
+    requireAdmin,
+    async (req, res) => {
+        try {
+            const result = await pool.query(`
+                SELECT
+                    (SELECT COUNT(*) FROM profiles)::int
+                        AS total_students,
+
+                    (COUNT(*) FILTER (
+                        WHERE status = 'verified'
+                    ))::int AS verified_students,
+
+                    (COUNT(*) FILTER (
+                        WHERE status = 'pending'
+                    ))::int AS pending_applications,
+
+                    (COUNT(*) FILTER (
+                        WHERE status = 'rejected'
+                    ))::int AS rejected_applications
+
+                FROM student_verifications
+            `);
+
+            res.json(result.rows[0]);
+
+        } catch (error) {
+            console.error("Admin overview error:", error.message);
+
+            res.status(500).json({
+                error: "Failed to fetch dashboard statistics."
+            });
+        }
+    }
+);
+
+// Fetch recent admin activity logs
+app.get(
+    "/api/admin/activity",
+    authenticateUser,
+    requireAdmin,
+    requireAdminRole("super_admin"),
+    async (req, res) => {
+        try {
+            const result = await pool.query(
+                `SELECT
+                    id,
+                    admin_user_id,
+                    action,
+                    target_type,
+                    target_id,
+                    details,
+                    created_at
+                 FROM admin_activity_logs
+                 ORDER BY created_at DESC
+                 LIMIT 10`
+            );
+
+            res.json({
+                activities: result.rows
+            });
+
+        } catch (error) {
+            console.error("Admin activity fetch error:", error.message);
+
+            res.status(500).json({
+                error: "Failed to fetch admin activity."
+            });
+        }
+    }
+);
+
 function getUserSupabaseClient(accessToken) {
     return createClient(
         process.env.SUPABASE_URL,
@@ -939,6 +1014,30 @@ app.patch(
                     decision === "rejected" ? rejection_reason.trim() : null,
                     verificationId,
                     decision
+                ]
+            );
+
+            await client.query(
+                `INSERT INTO admin_activity_logs (
+        admin_user_id,
+        action,
+        target_type,
+        target_id,
+        details
+    )
+    VALUES ($1, $2, $3, $4, $5)`,
+                [
+                    req.user.id,
+                    decision === "verified"
+                        ? "verification_approved"
+                        : "verification_rejected",
+                    "student_verification",
+                    verificationId,
+                    JSON.stringify(
+                        decision === "rejected"
+                            ? { rejection_reason: rejection_reason.trim() }
+                            : {}
+                    )
                 ]
             );
 
